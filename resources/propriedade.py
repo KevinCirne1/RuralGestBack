@@ -1,0 +1,67 @@
+
+from flask import request
+from flask_restful import Resource
+from models.propriedade import Propriedade
+from models.agricultor import Agricultor
+from helpers.database import db, ma
+from marshmallow import fields, ValidationError
+
+# --- Schemas ---
+class PropriedadeSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Propriedade
+        load_instance = True
+        include_fk = True
+
+    id = fields.Int(dump_only=True)
+    agricultor_id = fields.Int(required=True)
+
+propriedade_schema = PropriedadeSchema()
+propriedades_schema = PropriedadeSchema(many=True)
+
+# --- Resources ---
+class PropriedadeListResource(Resource):
+    def get(self, agricultor_id):
+        Agricultor.query.get_or_404(agricultor_id)
+        propriedades = Propriedade.query.filter_by(agricultor_id=agricultor_id).all()
+        return propriedades_schema.dump(propriedades)
+
+    def post(self, agricultor_id):
+        Agricultor.query.get_or_404(agricultor_id)
+        json_data = request.get_json()
+        json_data['agricultor_id'] = agricultor_id
+
+        try:
+            propriedade = propriedade_schema.load(json_data)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
+        db.session.add(propriedade)
+        db.session.commit()
+        
+        return propriedade_schema.dump(propriedade), 201
+
+class PropriedadeResource(Resource):
+    def get(self, propriedade_id):
+        propriedade = Propriedade.query.get_or_404(propriedade_id)
+        return propriedade_schema.dump(propriedade)
+
+    def put(self, propriedade_id):
+        propriedade = Propriedade.query.get_or_404(propriedade_id)
+        json_data = request.get_json()
+
+        try:
+            propriedade = propriedade_schema.load(
+                json_data, instance=propriedade, partial=True
+            )
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
+        db.session.commit()
+        return propriedade_schema.dump(propriedade)
+
+    def delete(self, propriedade_id):
+        propriedade = Propriedade.query.get_or_404(propriedade_id)
+        db.session.delete(propriedade)
+        db.session.commit()
+        return '', 204
