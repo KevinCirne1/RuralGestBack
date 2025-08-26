@@ -1,4 +1,3 @@
-
 from flask import request
 from flask_restful import Resource
 from models.propriedade import Propriedade
@@ -15,11 +14,18 @@ class PropriedadeSchema(ma.SQLAlchemyAutoSchema):
 
     id = fields.Int(dump_only=True)
     agricultor_id = fields.Int(required=True)
+    solicitacoes = fields.Nested("resources.solicitacao.SolicitacaoSchema", many=True, dump_only=True)
 
 propriedade_schema = PropriedadeSchema()
 propriedades_schema = PropriedadeSchema(many=True)
 
 # --- Resources ---
+class AllPropriedadesListResource(Resource):
+    def get(self):
+        """Lista todas as propriedades de todos os agricultores"""
+        propriedades = Propriedade.query.all()
+        return propriedades_schema.dump(propriedades)
+
 class PropriedadeListResource(Resource):
     def get(self, agricultor_id):
         Agricultor.query.get_or_404(agricultor_id)
