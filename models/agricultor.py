@@ -1,14 +1,20 @@
-from helpers.database import db
+from __future__ import annotations
+from typing import List
 from datetime import datetime
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Integer, DateTime
+from sqlalchemy import String, DateTime, func, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db
 
 class Agricultor(db.Model):
     __tablename__ = 'agricultor'
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(150), nullable=False)
     cpf: Mapped[str] = mapped_column(String(14), unique=True, nullable=False)
     comunidade: Mapped[str] = mapped_column(String(100), nullable=False)
     contato: Mapped[str] = mapped_column(String(20), nullable=True)
-    data_atualizacao_cadastro: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_atualizacao_cadastro: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # Relacionamentos
+    propriedades: Mapped[List["Propriedade"]] = relationship(back_populates="agricultor", cascade="all, delete-orphan")
+    solicitacoes: Mapped[List["Solicitacao"]] = relationship(back_populates="agricultor", cascade="all, delete-orphan")

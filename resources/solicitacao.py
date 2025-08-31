@@ -1,59 +1,76 @@
 from flask import request
 from flask_restful import Resource
-from models.solicitacao import Solicitacao
-from helpers.database import db, ma
-from marshmallow import fields, ValidationError
-from flask_jwt_extended import jwt_required
+from models import Solicitacao
+from helpers.database import db
+from marshmallow import ValidationError
+from flask_jwt_extended import jwt_required, get_jwt
+from schemas import (
+    SolicitacaoDetalhadoSchema,
+    SolicitacaoListaSchema,
+    SolicitacaoLoadSchema
+)
 
 # --- Schemas ---
-class SolicitacaoSchema(ma.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Solicitacao
-        load_instance = True
-        include_fk = True
-
-    id = fields.Int(dump_only=True)
-    data_solicitacao = fields.DateTime(dump_only=True)
-    agricultor_id = fields.Int(required=True)
-    propriedade_id = fields.Int(required=True)
-    servico_id = fields.Int(required=True)
-
-solicitacao_schema = SolicitacaoSchema()
-solicitacoes_schema = SolicitacaoSchema(many=True)
+solicitacao_schema_detalhado = SolicitacaoDetalhadoSchema()
+solicitacoes_schema_lista = SolicitacaoListaSchema(many=True)
+solicitacao_schema_carga = SolicitacaoLoadSchema()
 
 # --- Resources ---
+
 class SolicitacaoListResource(Resource):
     @jwt_required()
     def get(self):
-        return solicitacoes_schema.dump(Solicitacao.query.all())
-    
+        solicitacoes = Solicitacao.query.all()
+        return solicitacoes_schema_lista.dump(solicitacoes)
+
     @jwt_required()
     def post(self):
+        claims = get_jwt()
+        if claims.get('perfil') not in ['gestor', 'tecnico']:
+            return {"message": "Acesso negado."}, 403
+
         json_data = request.get_json()
         try:
-            solicitacao = solicitacao_schema.load(json_data)
+            dados_validados = solicitacao_schema_carga.load(json_data)
+            nova_solicitacao = Solicitacao(**dados_validados)
         except ValidationError as err:
             return {"messages": err.messages}, 400
-        db.session.add(solicitacao)
+        
+        db.session.add(nova_solicitacao)
         db.session.commit()
-        return solicitacao_schema.dump(solicitacao), 201
+        return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
 class SolicitacaoResource(Resource):
     @jwt_required()
     def get(self, solicitacao_id):
-        return solicitacao_schema.dump(Solicitacao.query.get_or_404(solicitacao_id))
-    
+        solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
+        return solicitacao_schema_detalhado.dump(solicitacao)
+
     @jwt_required()
     def put(self, solicitacao_id):
+        claims = get_jwt()
+        if claims.get('perfil') not in ['gestor', 'tecnico']:
+            return {"message": "Acesso negado."}, 403
+
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         json_data = request.get_json()
-        solicitacao.status = json_data.get('status', solicitacao.status)
-        solicitacao.operador_id = json_data.get('operador_id', solicitacao.operador_id)
+
+        try:
+            dados_validados = solicitacao_schema_carga.load(json_data, partial=True)
+            for key, value in dados_validados.items():
+                setattr(solicitacao, key, value)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
         db.session.commit()
-        return solicitacao_schema.dump(solicitacao)
-    
+        return solicitacao_schema_detalhado.dump(solicitacao)
+
     @jwt_required()
     def delete(self, solicitacao_id):
+        claims = get_jwt()
+        if claims.get('perfil') != 'gestor':
+            return {"message": "Acesso negado."}, 403
+            
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         db.session.delete(solicitacao)
         db.session.commit()

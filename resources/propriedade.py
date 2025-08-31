@@ -1,75 +1,85 @@
 from flask import request
 from flask_restful import Resource
 from models import Propriedade, Agricultor
-from helpers.database import db, ma
-from marshmallow import fields, ValidationError
-from flask_jwt_extended import jwt_required
+from helpers.database import db
+from marshmallow import ValidationError
+from flask_jwt_extended import jwt_required, get_jwt
+from schemas import (
+    PropriedadeDetalhadoSchema,
+    PropriedadeListaSchema,
+    PropriedadeLoadSchema
+)
 
 # --- Schemas ---
-class PropriedadeSchema(ma.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Propriedade
-        load_instance = True
-        include_fk = True
-
-    id = fields.Int(dump_only=True)
-    agricultor_id = fields.Int(required=True)
-    solicitacoes = fields.Nested("resources.solicitacao.SolicitacaoSchema", many=True, dump_only=True)
-
-propriedade_schema = PropriedadeSchema()
-propriedades_schema = PropriedadeSchema(many=True)
+propriedade_schema_detalhado = PropriedadeDetalhadoSchema()
+propriedades_schema_lista = PropriedadeListaSchema(many=True)
+propriedade_schema_carga = PropriedadeLoadSchema()
 
 # --- Resources ---
+
 class AllPropriedadesListResource(Resource):
     @jwt_required()
     def get(self):
         propriedades = Propriedade.query.all()
-        return propriedades_schema.dump(propriedades)
+        return propriedades_schema_lista.dump(propriedades)
 
 class PropriedadeListResource(Resource):
     @jwt_required()
     def get(self, agricultor_id):
         Agricultor.query.get_or_404(agricultor_id)
         propriedades = Propriedade.query.filter_by(agricultor_id=agricultor_id).all()
-        return propriedades_schema.dump(propriedades)
-
+        return propriedades_schema_lista.dump(propriedades)
+    
     @jwt_required()
     def post(self, agricultor_id):
+        claims = get_jwt()
+        if claims.get('perfil') != 'gestor':
+            return {"message": "Acesso negado."}, 403
+
         Agricultor.query.get_or_404(agricultor_id)
         json_data = request.get_json()
-        json_data['agricultor_id'] = agricultor_id
 
         try:
-            propriedade = propriedade_schema.load(json_data)
+            dados_validados = propriedade_schema_carga.load(json_data)
+            nova_propriedade = Propriedade(agricultor_id=agricultor_id, **dados_validados)
         except ValidationError as err:
             return {"messages": err.messages}, 400
         
-        db.session.add(propriedade)
+        db.session.add(nova_propriedade)
         db.session.commit()
-        
-        return propriedade_schema.dump(propriedade), 201
+        return propriedade_schema_detalhado.dump(nova_propriedade), 201
 
 class PropriedadeResource(Resource):
     @jwt_required()
     def get(self, propriedade_id):
         propriedade = Propriedade.query.get_or_404(propriedade_id)
-        return propriedade_schema.dump(propriedade)
+        return propriedade_schema_detalhado.dump(propriedade)
 
     @jwt_required()
     def put(self, propriedade_id):
+        claims = get_jwt()
+        if claims.get('perfil') != 'gestor':
+            return {"message": "Acesso negado."}, 403
+
         propriedade = Propriedade.query.get_or_404(propriedade_id)
         json_data = request.get_json()
 
         try:
-            propriedade = propriedade_schema.load(json_data, instance=propriedade, partial=True)
+            dados_validados = propriedade_schema_carga.load(json_data, partial=True)
+            for key, value in dados_validados.items():
+                setattr(propriedade, key, value)
         except ValidationError as err:
             return {"messages": err.messages}, 400
         
         db.session.commit()
-        return propriedade_schema.dump(propriedade)
+        return propriedade_schema_detalhado.dump(propriedade)
 
     @jwt_required()
     def delete(self, propriedade_id):
+        claims = get_jwt()
+        if claims.get('perfil') != 'gestor':
+            return {"message": "Acesso negado."}, 403
+            
         propriedade = Propriedade.query.get_or_404(propriedade_id)
         db.session.delete(propriedade)
         db.session.commit()
