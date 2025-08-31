@@ -2,8 +2,8 @@ from flask_migrate import Migrate
 from helpers.database import db
 from helpers.application import app, api, jwt
 from helpers.CORS import cors
-from models import * # Importa do __init__.py da pasta models
-from commands import seed_admin, reset_db # Importa o novo comando
+from models import * 
+from commands import seed_admin, reset_db 
 import schemas 
 
 # Inicialização das extensões com a aplicação
