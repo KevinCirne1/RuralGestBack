@@ -6,11 +6,11 @@ from models import *
 from commands import seed_admin, reset_db 
 import schemas 
 
-# Inicialização das extensões com a aplicação
+
 db.init_app(app)
 jwt.init_app(app)
 cors.init_app(app)
-migrate = Migrate(app, db) # <-- ADICIONADO: Inicializa o Flask-Migrate
+migrate = Migrate(app, db) 
 
 # Importação dos resources DEPOIS da inicialização
 from resources.agricultor import AgricultorResource, AgricultorListResource
