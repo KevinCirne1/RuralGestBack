@@ -3,6 +3,7 @@ from flask_restful import Resource
 from models.solicitacao import Solicitacao
 from helpers.database import db, ma
 from marshmallow import fields, ValidationError
+from flask_jwt_extended import jwt_required
 
 # --- Schemas ---
 class SolicitacaoSchema(ma.SQLAlchemyAutoSchema):
@@ -22,12 +23,14 @@ solicitacoes_schema = SolicitacaoSchema(many=True)
 
 # --- Resources ---
 class SolicitacaoListResource(Resource):
+    @jwt_required()
     def get(self):
         return solicitacoes_schema.dump(Solicitacao.query.all())
+    
+    @jwt_required()
     def post(self):
         json_data = request.get_json()
         try:
-            # TODO: Validar se o agricultor_id, propriedade_id e servico_id existem
             solicitacao = solicitacao_schema.load(json_data)
         except ValidationError as err:
             return {"messages": err.messages}, 400
@@ -36,15 +39,20 @@ class SolicitacaoListResource(Resource):
         return solicitacao_schema.dump(solicitacao), 201
 
 class SolicitacaoResource(Resource):
+    @jwt_required()
     def get(self, solicitacao_id):
         return solicitacao_schema.dump(Solicitacao.query.get_or_404(solicitacao_id))
-    def put(self, solicitacao_id): # Atualizar status ou operador
+    
+    @jwt_required()
+    def put(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         json_data = request.get_json()
         solicitacao.status = json_data.get('status', solicitacao.status)
         solicitacao.operador_id = json_data.get('operador_id', solicitacao.operador_id)
         db.session.commit()
         return solicitacao_schema.dump(solicitacao)
+    
+    @jwt_required()
     def delete(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         db.session.delete(solicitacao)
