@@ -1,7 +1,31 @@
 from helpers.database import ma
-from marshmallow import fields
+from marshmallow import fields, EXCLUDE
 
-# --- Schemas de Lista (sem relacionamentos profundos) ---
+# --- Schemas de Visualização (o que a API devolve) ---
+
+# Schemas Simples (usados para evitar ciclos em Nested fields)
+class AgricultorSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+
+class PropriedadeSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    terreno = fields.Str()
+
+class UsuarioSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+
+class ServicoSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome_servico = fields.Str()
+
+class SolicitacaoSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    data_solicitacao = fields.DateTime()
+    status = fields.Str()
+
+# --- Schemas de Lista ---
 
 class AgricultorListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -16,6 +40,9 @@ class PropriedadeListaSchema(ma.Schema):
     terreno = fields.Str()
     tipo_agricultura = fields.Str()
     area_total = fields.Float()
+    area_exploravel = fields.Float()
+    coordenadas_geograficas = fields.Str()
+    agricultor_id = fields.Int()
 
 class UsuarioListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -31,55 +58,67 @@ class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
     status = fields.Str()
-    agricultor = fields.Nested(AgricultorListaSchema, dump_only=True)
-    servico = fields.Nested(ServicoListaSchema, dump_only=True)
+    agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
+    servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
 
-# --- Schemas Detalhados (com relacionamentos) ---
+# --- Schemas de Detalhe ---
 
 class PropriedadeDetalhadoSchema(PropriedadeListaSchema):
-    area_exploravel = fields.Float()
-    coordenadas_geograficas = fields.Str()
+    agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
 
 class AgricultorDetalhadoSchema(AgricultorListaSchema):
-    propriedades = fields.Nested(PropriedadeDetalhadoSchema, many=True, dump_only=True)
-    solicitacoes = fields.Nested(SolicitacaoListaSchema, many=True, dump_only=True)
+    propriedades = fields.Nested("PropriedadeSimplesSchema", many=True, dump_only=True)
+    solicitacoes = fields.Nested("SolicitacaoSimplesSchema", many=True, dump_only=True)
+
+class UsuarioDetalhadoSchema(UsuarioListaSchema):
+    solicitacoes_atendidas = fields.Nested("SolicitacaoSimplesSchema", many=True, dump_only=True)
 
 class SolicitacaoDetalhadoSchema(SolicitacaoListaSchema):
     data_execucao = fields.DateTime()
-    propriedade = fields.Nested(PropriedadeDetalhadoSchema, dump_only=True)
-    operador = fields.Nested(UsuarioListaSchema, dump_only=True)
+    propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
+    operador = fields.Nested(UsuarioSimplesSchema, dump_only=True)
+
 
 # --- Schemas de Carga (para validar dados de entrada em POST/PUT) ---
-# AGORA SÃO EXPLÍCITOS PARA EVITAR ERROS
 
-class AgricultorLoadSchema(ma.Schema):
+# Classe base para os nossos schemas de carga, para que todos ignorem campos desconhecidos
+class BaseLoadSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+class AgricultorLoadSchema(BaseLoadSchema):
     nome = fields.Str(required=True)
     cpf = fields.Str(required=True)
     comunidade = fields.Str(required=True)
-    contato = fields.Str()
+    contato = fields.Str(required=True)
 
-class PropriedadeLoadSchema(ma.Schema):
+class PropriedadeLoadSchema(BaseLoadSchema):
     terreno = fields.Str(required=True)
-    tipo_agricultura = fields.Str()
-    area_total = fields.Float()
-    area_exploravel = fields.Float()
-    coordenadas_geograficas = fields.Str()
+    tipo_agricultura = fields.Str(required=True)
+    area_total = fields.Float(required=True)
+    area_exploravel = fields.Float(required=True)
+    coordenadas_geograficas = fields.Str(required=True)
+    # CORREÇÃO: O agricultor_id não é mais obrigatório aqui,
+    # pois para a criação (POST), ele virá da URL.
+    # Para a atualização (PUT), ele é opcional.
+    agricultor_id = fields.Int()
 
-class UsuarioLoadSchema(ma.Schema):
+class UsuarioLoadSchema(BaseLoadSchema):
     nome = fields.Str(required=True)
     login = fields.Email(required=True)
     senha = fields.Str(required=True, load_only=True)
     perfil = fields.Str(required=True)
 
-class ServicoLoadSchema(ma.Schema):
+class ServicoLoadSchema(BaseLoadSchema):
     nome_servico = fields.Str(required=True)
     descricao = fields.Str()
     capacidade_hectares = fields.Float()
 
-class SolicitacaoLoadSchema(ma.Schema):
+class SolicitacaoLoadSchema(BaseLoadSchema):
     agricultor_id = fields.Int(required=True)
     propriedade_id = fields.Int(required=True)
     servico_id = fields.Int(required=True)
-    operador_id = fields.Int()
+    operador_id = fields.Int(allow_none=True)
     status = fields.Str()
-    data_execucao = fields.DateTime()
+    data_execucao = fields.DateTime(allow_none=True)
+

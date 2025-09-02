@@ -10,8 +10,17 @@ class Usuario(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(150), nullable=False)
     login: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    senha_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    senha: Mapped[str] = mapped_column(String(255), nullable=False)
     perfil: Mapped[str] = mapped_column(String(50), nullable=False)
     
-    # Relacionamentos
     solicitacoes_atendidas: Mapped[List["Solicitacao"]] = relationship(back_populates="operador")
+
+    def __init__(self, nome, login, senha, perfil='tecnico'):
+        self.nome = nome
+        self.login = login
+        self.senha = senha
+        self.perfil = perfil
+
+    def verificar_senha(self, senha_texto_plano):
+        """Verifica a senha em texto simples."""
+        return self.senha == senha_texto_plano

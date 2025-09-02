@@ -1,16 +1,17 @@
+
 from flask import request
 from flask_restful import Resource
 from models import Solicitacao
 from helpers.database import db
 from marshmallow import ValidationError
-from flask_jwt_extended import jwt_required, get_jwt
+# CORREÇÃO: Importamos as CLASSES dos schemas
 from schemas import (
     SolicitacaoDetalhadoSchema,
     SolicitacaoListaSchema,
     SolicitacaoLoadSchema
 )
 
-# --- Schemas ---
+# --- Instâncias dos Schemas ---
 solicitacao_schema_detalhado = SolicitacaoDetalhadoSchema()
 solicitacoes_schema_lista = SolicitacaoListaSchema(many=True)
 solicitacao_schema_carga = SolicitacaoLoadSchema()
@@ -18,17 +19,11 @@ solicitacao_schema_carga = SolicitacaoLoadSchema()
 # --- Resources ---
 
 class SolicitacaoListResource(Resource):
-    @jwt_required()
     def get(self):
         solicitacoes = Solicitacao.query.all()
         return solicitacoes_schema_lista.dump(solicitacoes)
 
-    @jwt_required()
     def post(self):
-        claims = get_jwt()
-        if claims.get('perfil') not in ['gestor', 'tecnico']:
-            return {"message": "Acesso negado."}, 403
-
         json_data = request.get_json()
         try:
             dados_validados = solicitacao_schema_carga.load(json_data)
@@ -41,20 +36,13 @@ class SolicitacaoListResource(Resource):
         return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
 class SolicitacaoResource(Resource):
-    @jwt_required()
     def get(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         return solicitacao_schema_detalhado.dump(solicitacao)
 
-    @jwt_required()
     def put(self, solicitacao_id):
-        claims = get_jwt()
-        if claims.get('perfil') not in ['gestor', 'tecnico']:
-            return {"message": "Acesso negado."}, 403
-
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         json_data = request.get_json()
-
         try:
             dados_validados = solicitacao_schema_carga.load(json_data, partial=True)
             for key, value in dados_validados.items():
@@ -65,12 +53,7 @@ class SolicitacaoResource(Resource):
         db.session.commit()
         return solicitacao_schema_detalhado.dump(solicitacao)
 
-    @jwt_required()
     def delete(self, solicitacao_id):
-        claims = get_jwt()
-        if claims.get('perfil') != 'gestor':
-            return {"message": "Acesso negado."}, 403
-            
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         db.session.delete(solicitacao)
         db.session.commit()
