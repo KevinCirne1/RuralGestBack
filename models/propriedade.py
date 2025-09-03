@@ -1,6 +1,4 @@
-# ==============================================================================
-# FICHEIRO 9: models/propriedade.py (Refatorado com backref)
-# ==============================================================================
+
 from __future__ import annotations
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Float, ForeignKey

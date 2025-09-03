@@ -1,6 +1,4 @@
-# ==============================================================================
-# FICHEIRO 11: models/servico.py (Refatorado com backref)
-# ==============================================================================
+
 from __future__ import annotations
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Float

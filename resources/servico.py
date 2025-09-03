@@ -36,6 +36,19 @@ class ServicoResource(Resource):
     def get(self, servico_id):
         servico = Servico.query.get_or_404(servico_id)
         return ServicoListaSchema().dump(servico)
+    
+    def put(self, servico_id):
+        servico = Servico.query.get_or_404(servico_id)
+        json_data = request.get_json()
+        try:
+            dados_validados = servico_schema_carga.load(json_data, partial=True)
+            for key, value in dados_validados.items():
+                setattr(servico, key, value)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
+        db.session.commit()
+        return ServicoListaSchema().dump(servico)
 
     def delete(self, servico_id):
         servico = Servico.query.get_or_404(servico_id)

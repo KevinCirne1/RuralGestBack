@@ -53,6 +53,8 @@ class UsuarioListaSchema(ma.Schema):
 class ServicoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     nome_servico = fields.Str()
+    descricao = fields.Str()
+   
 
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -60,6 +62,7 @@ class SolicitacaoListaSchema(ma.Schema):
     status = fields.Str()
     agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
     servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
+    propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
 
 # --- Schemas de Detalhe ---
 
