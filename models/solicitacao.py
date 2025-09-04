@@ -18,8 +18,7 @@ class Solicitacao(db.Model):
     servico_id: Mapped[int] = mapped_column(ForeignKey("servico.id"))
     operador_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=True)
     
-    # CORREÇÃO: Definimos todos os relacionamentos aqui, usando backref.
-    # Isto simplifica os outros modelos e resolve o erro de inicialização.
+
     agricultor: Mapped["Agricultor"] = relationship(backref="solicitacoes")
     propriedade: Mapped["Propriedade"] = relationship(backref="solicitacoes")
     servico: Mapped["Servico"] = relationship(backref="solicitacoes")

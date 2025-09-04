@@ -15,5 +15,4 @@ class Agricultor(db.Model):
     contato: Mapped[str] = mapped_column(String(20))
     data_atualizacao_cadastro: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # A definição explícita dos relacionamentos foi movida para o outro lado da relação ("many-to-one")
-    # O backref irá criar as propriedades 'propriedades' e 'solicitacoes' aqui automaticamente.
+   

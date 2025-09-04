@@ -7,7 +7,7 @@ from helpers.cors import cors
 from models import Agricultor, Propriedade, Usuario, Servico, Solicitacao
 from commands import seed_admin, reset_db
 
-# Adicionando os resources (endpoints) à API
+# Adicionando os endpoints à API
 from resources.agricultor import AgricultorResource, AgricultorListResource
 from resources.propriedade import PropriedadeResource, PropriedadeListResource, AllPropriedadesListResource
 from resources.usuario import UsuarioResource, UsuarioListResource
@@ -32,7 +32,7 @@ app.cli.add_command(reset_db)
 
 
 
-# Adicionar os resources (endpoints) à API
+# Adicionar os endpoints à API
 from resources.agricultor import AgricultorResource, AgricultorListResource
 from resources.propriedade import PropriedadeResource, PropriedadeListResource, AllPropriedadesListResource
 from resources.usuario import UsuarioResource, UsuarioListResource

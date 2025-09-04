@@ -1,9 +1,9 @@
 from helpers.database import ma
 from marshmallow import fields, EXCLUDE
 
-# --- Schemas de Visualização (o que a API devolve) ---
+# --- Schemas de Visualização 
 
-# Schemas Simples (usados para evitar ciclos em Nested fields)
+# Schemas Simples 
 class AgricultorSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     nome = fields.Str()
@@ -82,9 +82,9 @@ class SolicitacaoDetalhadoSchema(SolicitacaoListaSchema):
     operador = fields.Nested(UsuarioSimplesSchema, dump_only=True)
 
 
-# --- Schemas de Carga (para validar dados de entrada em POST/PUT) ---
+# --- Schemas de Carga  ---
 
-# Classe base para os nossos schemas de carga, para que todos ignorem campos desconhecidos
+
 class BaseLoadSchema(ma.Schema):
     class Meta:
         unknown = EXCLUDE
@@ -101,9 +101,6 @@ class PropriedadeLoadSchema(BaseLoadSchema):
     area_total = fields.Float(required=True)
     area_exploravel = fields.Float(required=True)
     coordenadas_geograficas = fields.Str(required=True)
-    # CORREÇÃO: O agricultor_id não é mais obrigatório aqui,
-    # pois para a criação (POST), ele virá da URL.
-    # Para a atualização (PUT), ele é opcional.
     agricultor_id = fields.Int()
 
 class UsuarioLoadSchema(BaseLoadSchema):

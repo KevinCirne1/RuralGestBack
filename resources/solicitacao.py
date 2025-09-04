@@ -4,7 +4,6 @@ from flask_restful import Resource
 from models import Solicitacao
 from helpers.database import db
 from marshmallow import ValidationError
-# CORREÇÃO: Importamos as CLASSES dos schemas
 from schemas import (
     SolicitacaoDetalhadoSchema,
     SolicitacaoListaSchema,

@@ -12,4 +12,4 @@ class Servico(db.Model):
     descricao: Mapped[str] = mapped_column(String(255))
     capacidade_hectares: Mapped[float] = mapped_column(Float, nullable=True)
 
-    # A propriedade 'solicitacoes' será criada automaticamente pelo backref em Solicitacao.
+  

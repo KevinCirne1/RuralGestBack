@@ -14,7 +14,7 @@ def seed_admin():
             click.echo('Erro: O utilizador administrador com este login já existe.')
             return
 
-        # Agora cria o utilizador com a senha em texto simples
+        
         admin = Usuario(nome=nome, login=login, senha=senha, perfil='gestor')
         
         db.session.add(admin)

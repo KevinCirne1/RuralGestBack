@@ -16,6 +16,6 @@ class Propriedade(db.Model):
     
     agricultor_id: Mapped[int] = mapped_column(ForeignKey("agricultor.id"))
 
-    # CORREÇÃO: Usamos backref para criar a relação inversa em Agricultor.
+    
     agricultor: Mapped["Agricultor"] = relationship(backref="propriedades")
-    # A relação com solicitacoes é definida a partir de Solicitacao.
+    
