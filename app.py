@@ -2,7 +2,7 @@ from flask import Flask,jsonify
 from flask_migrate import Migrate
 #from flask_jwt_extended import JWTManager # Importamos o JWTManager diretamente
 from helpers.database import db, ma
-from helpers.application import app, api
+from helpers.application import app, api, cache
 from helpers.cors import cors
 from models import Agricultor, Propriedade, Usuario, Servico, Solicitacao
 from commands import seed_admin, reset_db
@@ -15,15 +15,12 @@ from resources.servico import ServicoResource, ServicoListResource
 from resources.solicitacao import SolicitacaoResource, SolicitacaoListResource
 from resources.auth import LoginResource
 
-
-
-
 # Inicialização das outras extensões
 
 db.init_app(app)
 ma.init_app(app)
 cors.init_app(app, supports_credentials=True)
-
+cache.init_app(app)
 migrate = Migrate(app, db)
 
 # Registar os comandos de terminal
