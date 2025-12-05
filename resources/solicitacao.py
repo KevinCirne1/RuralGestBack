@@ -9,6 +9,7 @@ from schemas import (
     SolicitacaoListaSchema,
     SolicitacaoLoadSchema
 )
+from helpers.application import cache
 
 # --- Instâncias dos Schemas ---
 solicitacao_schema_detalhado = SolicitacaoDetalhadoSchema()
@@ -18,6 +19,7 @@ solicitacao_schema_carga = SolicitacaoLoadSchema()
 # --- Resources ---
 
 class SolicitacaoListResource(Resource):
+    @cache.cached(timeout=600, key_prefix='all_solicitacoes')
     def get(self):
         solicitacoes = Solicitacao.query.all()
         return solicitacoes_schema_lista.dump(solicitacoes)
@@ -29,12 +31,14 @@ class SolicitacaoListResource(Resource):
             nova_solicitacao = Solicitacao(**dados_validados)
         except ValidationError as err:
             return {"messages": err.messages}, 400
-        
         db.session.add(nova_solicitacao)
         db.session.commit()
+
+        cache.delete('all_solicitacoes')
         return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
 class SolicitacaoResource(Resource):
+    @cache.cached(timeout=600, key_prefix='solicitacao')
     def get(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         return solicitacao_schema_detalhado.dump(solicitacao)
@@ -48,12 +52,16 @@ class SolicitacaoResource(Resource):
                 setattr(solicitacao, key, value)
         except ValidationError as err:
             return {"messages": err.messages}, 400
-        
         db.session.commit()
+
+        cache.delete('all_solicitacoes')
+        cache.delete(f'solicitacao_{solicitacao_id}')
         return solicitacao_schema_detalhado.dump(solicitacao)
 
     def delete(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         db.session.delete(solicitacao)
         db.session.commit()
+        cache.delete('all_solicitacoes')
+        cache.delete(f'solicitacao_{solicitacao_id}')
         return '', 204
