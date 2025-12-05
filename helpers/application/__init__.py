@@ -1,10 +1,14 @@
 from flask import Flask
 from flask_restful import Api
+from flask_caching import Cache
+from flask_bcrypt import Bcrypt
 from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
 api = Api(app)
+cache = Cache()
+bcrypt = Bcrypt(app)
 #jwt = JWTManager() 
 
 """

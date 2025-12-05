@@ -1,6 +1,7 @@
 import click
 from models.usuario import Usuario
 from helpers.database import db
+from helpers.application import bcrypt
 
 @click.command('seed_admin')
 def seed_admin():
@@ -14,8 +15,8 @@ def seed_admin():
             click.echo('Erro: O utilizador administrador com este login já existe.')
             return
 
-        
-        admin = Usuario(nome=nome, login=login, senha=senha, perfil='gestor')
+        hashed_password = bcrypt.generate_password_hash(senha).decode('utf-8')
+        admin = Usuario(nome=nome, login=login, senha=hashed_password, perfil='gestor')
         
         db.session.add(admin)
         db.session.commit()

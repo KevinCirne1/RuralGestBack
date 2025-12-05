@@ -2,6 +2,7 @@ from flask import request
 from flask_restful import Resource
 from models.usuario import Usuario
 from schemas import UsuarioDetalhadoSchema
+from helpers.application import bcrypt
 
 # Instância do schema para este resource
 usuario_schema_detalhado = UsuarioDetalhadoSchema()
