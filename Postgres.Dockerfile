@@ -1,0 +1,5 @@
+FROM postgres:18.1-alpine3.22
+
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=123456
+ENV POSTGRES_DB=ruralgest
