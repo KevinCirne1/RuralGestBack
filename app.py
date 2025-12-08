@@ -5,7 +5,7 @@ from helpers.database import db, ma
 from helpers.application import app, api
 from helpers.cors import cors
 from models import Agricultor, Propriedade, Usuario, Servico, Solicitacao
-from commands import seed_admin, reset_db
+from commands import seed_admin, reset_db, seed_agricultor
 
 # Adicionando os endpoints à API
 from resources.agricultor import AgricultorResource, AgricultorListResource
@@ -29,6 +29,7 @@ migrate = Migrate(app, db)
 # Registar os comandos de terminal
 app.cli.add_command(seed_admin)
 app.cli.add_command(reset_db)
+app.cli.add_command(seed_agricultor) 
 
 
 
