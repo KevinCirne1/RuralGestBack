@@ -36,3 +36,6 @@ def reset_db():
         except Exception as e:
             db.session.rollback()
             click.echo(f"Erro ao zerar a base de dados: {e}")
+
+
+            
