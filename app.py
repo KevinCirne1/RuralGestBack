@@ -31,7 +31,6 @@ app.cli.add_command(seed_admin)
 app.cli.add_command(reset_db)
 
 
-
 # Adicionar os endpoints à API
 from resources.agricultor import AgricultorResource, AgricultorListResource
 from resources.propriedade import PropriedadeResource, PropriedadeListResource, AllPropriedadesListResource
