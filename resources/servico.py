@@ -3,7 +3,6 @@ from flask_restful import Resource
 from models import Servico
 from helpers.database import db
 from marshmallow import ValidationError
-
 from schemas import (
     ServicoListaSchema,
     ServicoLoadSchema
@@ -36,7 +35,7 @@ class ServicoResource(Resource):
     def get(self, servico_id):
         servico = Servico.query.get_or_404(servico_id)
         return ServicoListaSchema().dump(servico)
-    
+
     def put(self, servico_id):
         servico = Servico.query.get_or_404(servico_id)
         json_data = request.get_json()

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from helpers.database import db
+from helpers.database import db, bcrypt
 
 class Usuario(db.Model):
     __tablename__ = 'usuario'
@@ -13,7 +13,6 @@ class Usuario(db.Model):
     senha: Mapped[str] = mapped_column(String(255), nullable=False)
     perfil: Mapped[str] = mapped_column(String(50), nullable=False)
     
-    # Aqui dizemos: "O outro lado se chama 'operador'"
     solicitacoes_atendidas: Mapped[List["Solicitacao"]] = relationship(back_populates="operador")
 
     def __init__(self, nome, login, senha, perfil='tecnico'):

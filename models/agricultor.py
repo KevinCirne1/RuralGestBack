@@ -1,25 +1,22 @@
 from __future__ import annotations
+from typing import List
 from datetime import datetime
+from sqlalchemy import String, DateTime, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, ForeignKey
 from helpers.database import db
-
-# Importamos Usuario apenas para tipagem, se necessário, ou usamos string "Usuario"
-# from models.usuario import Usuario 
 
 class Agricultor(db.Model):
     __tablename__ = 'agricultor'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nome: Mapped[str] = mapped_column(String(150))
-    cpf: Mapped[str] = mapped_column(String(20), unique=True, nullable=True) # CPF pode ser nulo em testes
-    comunidade: Mapped[str] = mapped_column(String(100))
-    contato: Mapped[str] = mapped_column(String(20))
-    data_atualizacao_cadastro: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # --- A PONTE QUE FALTAVA ---
-    # Cria uma coluna para guardar o ID do login
-    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=True)
+    nome: Mapped[str] = mapped_column(String(150), nullable=False)
+    cpf: Mapped[str] = mapped_column(String(20), unique=True, nullable=True)
+    comunidade: Mapped[str] = mapped_column(String(100), nullable=False)
+    contato: Mapped[str] = mapped_column(String(20), nullable=True)
+    data_atualizacao_cadastro: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     
-    # Cria o relacionamento para o Python entender
-    usuario = relationship("Usuario", backref="agricultor_perfil")
+    # NOVO: Ligação com a tabela de usuários
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=True)
+
+    propriedades: Mapped[List["Propriedade"]] = relationship(back_populates="agricultor", cascade="all, delete-orphan")
+    solicitacoes: Mapped[List["Solicitacao"]] = relationship(back_populates="agricultor", cascade="all, delete-orphan")
