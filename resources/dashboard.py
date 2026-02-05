@@ -1,19 +1,33 @@
 from flask_restful import Resource
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from helpers.database import db
 from models import Agricultor, Solicitacao, Servico, Propriedade
 
 class DashboardResumoResource(Resource):
     def get(self):
-        """Devolve os contadores principais para os cartões do topo do dashboard"""
+        """Devolve os contadores principais para os cartões e gráfico de status"""
+        
+        # 1. Totais Gerais
         total_agricultores = db.session.query(func.count(Agricultor.id)).scalar()
         total_solicitacoes = db.session.query(func.count(Solicitacao.id)).scalar()
         total_hectares = db.session.query(func.sum(Propriedade.area_total)).scalar() or 0
         
-        # Contagem por status
-        pendentes = Solicitacao.query.filter_by(status='Pendente').count()
-        em_andamento = Solicitacao.query.filter_by(status='Em Andamento').count()
-        concluidas = Solicitacao.query.filter_by(status='Concluído').count()
+        # 2. Contagem Inteligente de Status (Case Insensitive e Agrupada)
+        # Pega todos os status do banco para não errar maiuscula/minuscula
+        all_status = db.session.query(Solicitacao.status).all()
+        status_list = [s[0].upper() for s in all_status] # Converte tudo para maiúsculo
+        
+        # Agrupa nas 3 categorias do gráfico
+        pendentes = status_list.count('PENDENTE')
+        
+        # "Em Andamento" agora inclui APROVADA e EM_USO
+        em_andamento = (status_list.count('EM ANDAMENTO') + 
+                        status_list.count('APROVADA') + 
+                        status_list.count('EM_USO'))
+                        
+        concluidas = (status_list.count('CONCLUÍDA') + 
+                      status_list.count('CONCLUIDA') + 
+                      status_list.count('FINALIZADA'))
 
         return {
             "total_agricultores": total_agricultores,
@@ -28,10 +42,9 @@ class DashboardResumoResource(Resource):
 
 class DashboardGraficosResource(Resource):
     def get(self):
-        """Devolve dados formatados para gráficos (ex: Pizza ou Barras)"""
+        """Devolve dados formatados para o gráfico de barras (Serviços)"""
         
-        # 1. Serviços mais solicitados
-        # SQL equivalente: SELECT nome_servico, COUNT(*) FROM solicitacao JOIN servico ... GROUP BY nome_servico
+        # Serviços mais solicitados
         servicos_populares = db.session.query(
             Servico.nome_servico, func.count(Solicitacao.id)
         ).join(Solicitacao).group_by(Servico.nome_servico).all()
@@ -42,5 +55,4 @@ class DashboardGraficosResource(Resource):
 
         return {
             "servicos_populares": dados_grafico_servicos,
-            # Pode adicionar mais gráficos aqui (ex: Solicitações por Mês)
         }, 200
