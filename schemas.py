@@ -30,6 +30,11 @@ class SolicitacaoSimplesSchema(ma.Schema):
     data_solicitacao = fields.DateTime()
     status = fields.Str()
 
+class VisitaTecnicaSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    data_visita = fields.DateTime()
+    observacoes = fields.Str()
+
 # --- Schemas de Lista ---
 
 class VeiculoListaSchema(ma.Schema):
@@ -77,24 +82,23 @@ class ServicoListaSchema(ma.Schema):
     capacidade_hectares = fields.Float()
     tipo_veiculo = fields.Str()
 
-# --- Schema de Solicitação (Lista + Edição) ---
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
     status = fields.Str()
     motivo_recusa = fields.Str()
-
-    # Campos de ID para o Frontend conseguir editar
-    propriedade_id = fields.Int()
-    servico_id = fields.Int()
-    veiculo_id = fields.Int()
-    agricultor_id = fields.Int()
-
-    # Objetos aninhados para exibição bonita
     agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
     servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
     propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
     veiculo = fields.Nested(VeiculoSimplesSchema, dump_only=True)
+
+class VisitaTecnicaListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    data_visita = fields.DateTime()
+    observacoes = fields.Str()
+    # Mostramos o nome do técnico e o ID da solicitação
+    tecnico_nome = fields.Function(lambda obj: obj.tecnico.nome if obj.tecnico else "N/A")
+    solicitacao_id = fields.Int()
 
 # --- Schemas de Detalhe ---
 
@@ -114,9 +118,10 @@ class SolicitacaoDetalhadoSchema(SolicitacaoListaSchema):
     operador = fields.Nested(UsuarioSimplesSchema, dump_only=True)
     veiculo = fields.Nested(VeiculoSimplesSchema, dump_only=True)
 
+class VisitaTecnicaDetalhadoSchema(VisitaTecnicaListaSchema):
+    pass
 
-# --- Schemas de Carga (Load - Validação de Entrada) ---
-
+# --- Schemas de Carga (Load) ---
 class BaseLoadSchema(ma.Schema):
     class Meta:
         unknown = EXCLUDE
@@ -162,10 +167,31 @@ class SolicitacaoLoadSchema(BaseLoadSchema):
     operador_id = fields.Int(allow_none=True)
     veiculo_id = fields.Int(allow_none=True)
     status = fields.Str()
-    
-    # --- CAMPO QUE FALTAVA (CORREÇÃO) 👇 ---
-    data_solicitacao = fields.Date(allow_none=True)
-    # ---------------------------------------
-
     data_execucao = fields.DateTime(allow_none=True)
     motivo_recusa = fields.Str(allow_none=True)
+
+class VisitaTecnicaLoadSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+    solicitacao_id = fields.Int(required=True)
+    tecnico_id = fields.Int(required=True)
+    data_visita = fields.DateTime(allow_none=True)
+    observacoes = fields.Str(required=True)
+
+class DocumentoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    tipo_documento = fields.Str()
+    arquivo_pdf = fields.Str()
+    assinatura_digital = fields.Str()
+    data_geracao = fields.DateTime()
+    solicitacao_id = fields.Int()
+
+class DocumentoLoadSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+    solicitacao_id = fields.Int(required=True)
+    tipo_documento = fields.Str(required=True)
+
+
+    
+    

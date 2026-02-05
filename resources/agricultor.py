@@ -3,6 +3,7 @@ from flask_restful import Resource
 from models import Agricultor
 from helpers.database import db
 from marshmallow import ValidationError
+
 from schemas import (
     AgricultorDetalhadoSchema, 
     AgricultorListaSchema, 

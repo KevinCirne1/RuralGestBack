@@ -15,7 +15,7 @@ class Agricultor(db.Model):
     contato: Mapped[str] = mapped_column(String(20), nullable=True)
     data_atualizacao_cadastro: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     
-    # NOVO: Ligação com a tabela de usuários
+    # NOVO
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=True)
 
     propriedades: Mapped[List["Propriedade"]] = relationship(back_populates="agricultor", cascade="all, delete-orphan")

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from helpers.database import db, bcrypt
+from helpers.database import db
 
 class Usuario(db.Model):
     __tablename__ = 'usuario'
@@ -22,4 +22,5 @@ class Usuario(db.Model):
         self.perfil = perfil
 
     def verificar_senha(self, senha_texto_plano):
+        """Verifica a senha em texto simples."""
         return self.senha == senha_texto_plano

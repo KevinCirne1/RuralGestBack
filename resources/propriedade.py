@@ -3,6 +3,7 @@ from flask_restful import Resource
 from models import Propriedade, Agricultor
 from helpers.database import db
 from marshmallow import ValidationError
+
 from schemas import (
     PropriedadeDetalhadoSchema,
     PropriedadeListaSchema,
@@ -16,12 +17,9 @@ propriedade_schema_carga = PropriedadeLoadSchema()
 
 # --- Resources ---
 
-# ESTA É A CLASSE QUE PREENCHE O DROPDOWN 👇
 class AllPropriedadesListResource(Resource):
     def get(self):
-        # Busca todas as propriedades do banco
         propriedades = Propriedade.query.all()
-        # Retorna a lista formatada
         return propriedades_schema_lista.dump(propriedades)
 
 class PropriedadeListResource(Resource):

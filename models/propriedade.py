@@ -15,7 +15,8 @@ class Propriedade(db.Model):
     coordenadas_geograficas: Mapped[str] = mapped_column(String(50))
     # NOVOS CAMPOS
     cultura_principal: Mapped[str] = mapped_column(String(100), nullable=True)
-    quantidade_gado: Mapped[int] = mapped_column(Integer, default=0)
+    quantidade_gado: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
     
     agricultor_id: Mapped[int] = mapped_column(ForeignKey('agricultor.id'), nullable=False)
     
