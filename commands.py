@@ -1,5 +1,6 @@
 import click
 from models.usuario import Usuario
+from models.veiculo import Veiculo
 from helpers.database import db
 from sqlalchemy import text
 
@@ -61,3 +62,24 @@ def reset_db():
         except Exception as e:
             db.session.rollback()
             click.echo(f"Erro ao zerar a base de dados: {e}")
+
+@click.command('seed_veiculos')
+def seed_veiculos():
+    """Cadastra a frota inicial de veículos."""
+    frota = [
+        {"nome": "Caminhão Caçamba 01", "tipo": "Caminhão", "placa": "PM-0001"},
+        {"nome": "Retroescavadeira 01", "tipo": "Retroescavadeira", "placa": "PM-0002"},
+        {"nome": "Motoniveladora 01", "tipo": "Motoniveladora", "placa": "PM-0003"},
+        {"nome": "Trator com Grade", "tipo": "Trator", "placa": "PM-0005"},
+    ]
+    try:
+        count = 0
+        for v in frota:
+            if not Veiculo.query.filter_by(nome=v["nome"]).first():
+                novo = Veiculo(nome=v["nome"], tipo=v["tipo"], placa=v["placa"], status="DISPONIVEL")
+                db.session.add(novo)
+                count += 1
+        db.session.commit()
+        click.echo(f"Sucesso! {count} veículos adicionados.")
+    except Exception as e:
+        click.echo(f"Erro: {e}")

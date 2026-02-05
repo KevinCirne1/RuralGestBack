@@ -3,3 +3,6 @@ from .propriedade import Propriedade
 from .usuario import Usuario
 from .servico import Servico
 from .solicitacao import Solicitacao
+from .veiculo import Veiculo
+from .notificacao import Notificacao
+from .visita_tecnica import VisitaTecnica

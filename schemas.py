@@ -1,9 +1,13 @@
 from helpers.database import ma
 from marshmallow import fields, EXCLUDE
 
-# --- Schemas de Visualização 
+# --- Schemas de Visualização (Saída) ---
 
-# Schemas Simples 
+class VeiculoSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+    status = fields.Str()
+
 class AgricultorSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     nome = fields.Str()
@@ -19,13 +23,32 @@ class UsuarioSimplesSchema(ma.Schema):
 class ServicoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     nome_servico = fields.Str()
+    tipo_veiculo = fields.Str()
 
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
     status = fields.Str()
 
+class VisitaTecnicaSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    data_visita = fields.DateTime()
+    observacoes = fields.Str()
+
 # --- Schemas de Lista ---
+
+class VeiculoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+    placa = fields.Str()
+    tipo = fields.Str()
+    status = fields.Str()
+
+class NotificacaoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    mensagem = fields.Str()
+    lida = fields.Bool()
+    data_criacao = fields.DateTime()
 
 class AgricultorListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -43,6 +66,8 @@ class PropriedadeListaSchema(ma.Schema):
     area_exploravel = fields.Float()
     coordenadas_geograficas = fields.Str()
     agricultor_id = fields.Int()
+    cultura_principal = fields.Str()
+    quantidade_gado = fields.Int()
 
 class UsuarioListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -54,15 +79,26 @@ class ServicoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     nome_servico = fields.Str()
     descricao = fields.Str()
-   
+    capacidade_hectares = fields.Float()
+    tipo_veiculo = fields.Str()
 
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
     status = fields.Str()
+    motivo_recusa = fields.Str()
     agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
     servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
     propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
+    veiculo = fields.Nested(VeiculoSimplesSchema, dump_only=True)
+
+class VisitaTecnicaListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    data_visita = fields.DateTime()
+    observacoes = fields.Str()
+    # Mostramos o nome do técnico e o ID da solicitação
+    tecnico_nome = fields.Function(lambda obj: obj.tecnico.nome if obj.tecnico else "N/A")
+    solicitacao_id = fields.Int()
 
 # --- Schemas de Detalhe ---
 
@@ -80,14 +116,21 @@ class SolicitacaoDetalhadoSchema(SolicitacaoListaSchema):
     data_execucao = fields.DateTime()
     propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
     operador = fields.Nested(UsuarioSimplesSchema, dump_only=True)
+    veiculo = fields.Nested(VeiculoSimplesSchema, dump_only=True)
 
+class VisitaTecnicaDetalhadoSchema(VisitaTecnicaListaSchema):
+    pass
 
-# --- Schemas de Carga  ---
-
-
+# --- Schemas de Carga (Load) ---
 class BaseLoadSchema(ma.Schema):
     class Meta:
         unknown = EXCLUDE
+
+class VeiculoLoadSchema(BaseLoadSchema):
+    nome = fields.Str(required=True)
+    placa = fields.Str(allow_none=True)
+    tipo = fields.Str(required=True)
+    status = fields.Str(allow_none=True)
 
 class AgricultorLoadSchema(BaseLoadSchema):
     nome = fields.Str(required=True)
@@ -102,6 +145,8 @@ class PropriedadeLoadSchema(BaseLoadSchema):
     area_exploravel = fields.Float(required=True)
     coordenadas_geograficas = fields.Str(required=True)
     agricultor_id = fields.Int()
+    cultura_principal = fields.Str(allow_none=True)
+    quantidade_gado = fields.Int(load_default=0)
 
 class UsuarioLoadSchema(BaseLoadSchema):
     nome = fields.Str(required=True)
@@ -111,14 +156,26 @@ class UsuarioLoadSchema(BaseLoadSchema):
 
 class ServicoLoadSchema(BaseLoadSchema):
     nome_servico = fields.Str(required=True)
-    descricao = fields.Str()
-    capacidade_hectares = fields.Float()
+    descricao = fields.Str(allow_none=True)
+    capacidade_hectares = fields.Float(allow_none=True)
+    tipo_veiculo = fields.Str(allow_none=True)
 
 class SolicitacaoLoadSchema(BaseLoadSchema):
     agricultor_id = fields.Int(required=True)
     propriedade_id = fields.Int(required=True)
     servico_id = fields.Int(required=True)
     operador_id = fields.Int(allow_none=True)
+    veiculo_id = fields.Int(allow_none=True)
     status = fields.Str()
     data_execucao = fields.DateTime(allow_none=True)
+    motivo_recusa = fields.Str(allow_none=True)
 
+class VisitaTecnicaLoadSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+    solicitacao_id = fields.Int(required=True)
+    tecnico_id = fields.Int(required=True)
+    data_visita = fields.DateTime(allow_none=True)
+    observacoes = fields.Str(required=True)
+    
+    

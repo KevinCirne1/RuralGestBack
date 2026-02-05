@@ -1,7 +1,6 @@
-
 from flask import request
 from flask_restful import Resource
-from models import Solicitacao
+from models import Solicitacao, Notificacao, Usuario
 from helpers.database import db
 from marshmallow import ValidationError
 from schemas import (
@@ -10,12 +9,9 @@ from schemas import (
     SolicitacaoLoadSchema
 )
 
-# --- Instâncias dos Schemas ---
 solicitacao_schema_detalhado = SolicitacaoDetalhadoSchema()
 solicitacoes_schema_lista = SolicitacaoListaSchema(many=True)
 solicitacao_schema_carga = SolicitacaoLoadSchema()
-
-# --- Resources ---
 
 class SolicitacaoListResource(Resource):
     def get(self):
@@ -25,14 +21,25 @@ class SolicitacaoListResource(Resource):
     def post(self):
         json_data = request.get_json()
         try:
-            dados_validados = solicitacao_schema_carga.load(json_data)
-            nova_solicitacao = Solicitacao(**dados_validados)
+            data = solicitacao_schema_carga.load(json_data)
+            nova_solicitacao = Solicitacao(**data)
+            db.session.add(nova_solicitacao)
+            db.session.commit()
+            
+            # Notifica Admins (Lógica do seu amigo)
+            try:
+                admins = Usuario.query.filter(Usuario.perfil.in_(['gestor', 'tecnico'])).all()
+                if admins:
+                    msg = "Novo Pedido: Uma solicitação foi criada."
+                    for admin in admins:
+                        db.session.add(Notificacao(usuario_id=admin.id, mensagem=msg))
+                    db.session.commit()
+            except Exception as e:
+                print(f"❌ Erro ao notificar admins: {e}")
+
+            return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
         except ValidationError as err:
             return {"messages": err.messages}, 400
-        
-        db.session.add(nova_solicitacao)
-        db.session.commit()
-        return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
 class SolicitacaoResource(Resource):
     def get(self, solicitacao_id):
@@ -42,18 +49,47 @@ class SolicitacaoResource(Resource):
     def put(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         json_data = request.get_json()
+        
         try:
-            dados_validados = solicitacao_schema_carga.load(json_data, partial=True)
-            for key, value in dados_validados.items():
+            data = solicitacao_schema_carga.load(json_data, partial=True)
+            
+            # LÓGICA DE VEÍCULO E NOTIFICAÇÃO
+            novo_status = data.get('status')
+            
+            for key, value in data.items():
                 setattr(solicitacao, key, value)
+            
+            if novo_status == 'APROVADA' and solicitacao.veiculo:
+                solicitacao.veiculo.status = 'EM_USO'
+            elif novo_status in ['CONCLUÍDA', 'RECUSADA', 'CANCELADA'] and solicitacao.veiculo:
+                solicitacao.veiculo.status = 'DISPONIVEL'
+            
+            db.session.commit()
+
+            # Notifica Agricultor
+            if novo_status in ['APROVADA', 'RECUSADA', 'CONCLUÍDA']:
+                try:
+                    agricultor = solicitacao.agricultor
+                    if agricultor and agricultor.usuario_id:
+                        msg = f"Sua solicitação foi {novo_status}."
+                        if novo_status == 'RECUSADA' and solicitacao.motivo_recusa:
+                            msg += f" Motivo: {solicitacao.motivo_recusa}"
+                        db.session.add(Notificacao(usuario_id=agricultor.usuario_id, mensagem=msg))
+                        db.session.commit()
+                except Exception as e:
+                    print(f"Erro ao criar notificação: {e}")
+
+            return solicitacao_schema_detalhado.dump(solicitacao)
+
         except ValidationError as err:
             return {"messages": err.messages}, 400
-        
-        db.session.commit()
-        return solicitacao_schema_detalhado.dump(solicitacao)
 
     def delete(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
+        
+        if solicitacao.veiculo and solicitacao.status == 'APROVADA':
+            solicitacao.veiculo.status = 'DISPONIVEL'
+            
         db.session.delete(solicitacao)
         db.session.commit()
         return '', 204
