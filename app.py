@@ -21,7 +21,8 @@ from resources.veiculo import VeiculoResource, VeiculoListResource
 from resources.notificacao import NotificacaoListResource, NotificacaoLerResource
 from resources.visita_tecnica import VisitaListResource, VisitaResource # <-- NOVO
 from resources.dashboard import DashboardResumoResource, DashboardGraficosResource 
-from resources.documento import DocumentoListResource, DocumentoResource
+from resources.documento import DocumentoListResource, DocumentoResource , DocumentoDownloadResource 
+
 
 
 
@@ -62,6 +63,8 @@ api.add_resource(DashboardGraficosResource, '/dashboard/graficos')
 # Rotas de Documentos
 api.add_resource(DocumentoListResource, '/documentos')
 api.add_resource(DocumentoResource, '/documentos/<int:documento_id>')
+api.add_resource(DocumentoDownloadResource, '/documentos/download/<int:documento_id>')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
