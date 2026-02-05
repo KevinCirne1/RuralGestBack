@@ -177,5 +177,21 @@ class VisitaTecnicaLoadSchema(ma.Schema):
     tecnico_id = fields.Int(required=True)
     data_visita = fields.DateTime(allow_none=True)
     observacoes = fields.Str(required=True)
+
+class DocumentoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    tipo_documento = fields.Str()
+    arquivo_pdf = fields.Str()
+    assinatura_digital = fields.Str()
+    data_geracao = fields.DateTime()
+    solicitacao_id = fields.Int()
+
+class DocumentoLoadSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+    solicitacao_id = fields.Int(required=True)
+    tipo_documento = fields.Str(required=True)
+
+
     
     

@@ -1,6 +1,6 @@
 from flask import request
 from flask_restful import Resource
-from models import Solicitacao, Notificacao, Usuario
+from models import Solicitacao, Notificacao, Usuario, Documento
 from helpers.database import db
 from marshmallow import ValidationError
 from schemas import (
@@ -65,6 +65,24 @@ class SolicitacaoResource(Resource):
                 solicitacao.veiculo.status = 'DISPONIVEL'
             
             db.session.commit()
+
+    # --- 3. GERAÇÃO AUTOMÁTICA: RELATÓRIO FINAL ---
+            # Se o serviço for CONCLUÍDO, geramos o documento para assinatura
+            if novo_status == 'CONCLUÍDA':
+                # Verifica se já não existe para não duplicar
+                existe = False
+                for doc in solicitacao.documentos:
+                    if doc.tipo_documento == "RELATORIO_FINAL":
+                        existe = True
+                        break
+                
+                if not existe:
+                    relatorio = Documento(
+                        solicitacao_id=solicitacao.id,
+                        tipo_documento="RELATORIO_FINAL"
+                    )
+                    relatorio.arquivo_pdf = f"relatorio_final_{solicitacao.id}.pdf"
+                    db.session.add(relatorio)
 
             # Notifica Agricultor
             if novo_status in ['APROVADA', 'RECUSADA', 'CONCLUÍDA']:

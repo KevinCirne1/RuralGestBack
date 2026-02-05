@@ -5,7 +5,7 @@ from helpers.database import db, ma,bcrypt
 from helpers.application import app, api
 from helpers.cors import cors
 
-from models import Agricultor, Propriedade, Usuario, Servico, Solicitacao, Veiculo, Notificacao, VisitaTecnica 
+from models import Agricultor, Propriedade, Usuario, Servico, Solicitacao, Veiculo, Notificacao, VisitaTecnica,Documento  
 
 from commands import seed_admin, reset_db, seed_agricultor,seed_veiculos
 
@@ -21,6 +21,7 @@ from resources.veiculo import VeiculoResource, VeiculoListResource
 from resources.notificacao import NotificacaoListResource, NotificacaoLerResource
 from resources.visita_tecnica import VisitaListResource, VisitaResource # <-- NOVO
 from resources.dashboard import DashboardResumoResource, DashboardGraficosResource 
+from resources.documento import DocumentoListResource, DocumentoResource
 
 
 
@@ -58,6 +59,9 @@ api.add_resource(VisitaResource, '/visitas/<int:visita_id>')
 #novos
 api.add_resource(DashboardResumoResource, '/dashboard/resumo')
 api.add_resource(DashboardGraficosResource, '/dashboard/graficos')
+# Rotas de Documentos
+api.add_resource(DocumentoListResource, '/documentos')
+api.add_resource(DocumentoResource, '/documentos/<int:documento_id>')
 
 if __name__ == '__main__':
     app.run(debug=True)
