@@ -91,6 +91,7 @@ class SolicitacaoListaSchema(ma.Schema):
     servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
     propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
     veiculo = fields.Nested(VeiculoSimplesSchema, dump_only=True)
+    operador = fields.Nested(UsuarioSimplesSchema, dump_only=True)
 
 class VisitaTecnicaListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)

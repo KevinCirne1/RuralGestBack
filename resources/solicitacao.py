@@ -16,7 +16,26 @@ solicitacao_schema_carga = SolicitacaoLoadSchema()
 
 class SolicitacaoListResource(Resource):
     def get(self):
-        solicitacoes = Solicitacao.query.all()
+        operador_id = request.args.get('operador_id')
+        status = request.args.get('status')
+        
+        # Debug: Imprime no terminal para sabermos se o filtro chegou
+        print(f"\n--- DEBUG GET SOLICITACOES ---")
+        print(f"Filtros -> Operador: {operador_id} | Status: {status}")
+        
+        # 2. Começa a consulta base
+        query = Solicitacao.query
+
+        # 3. Aplica filtro de Operador (se houver)
+        if operador_id:
+            query = query.filter_by(operador_id=operador_id)
+        
+        # 4. Aplica filtro de Status (se houver)
+        if status:
+            query = query.filter_by(status=status)
+            
+        # 5. Executa e retorna
+        solicitacoes = query.all()
         return solicitacoes_schema_lista.dump(solicitacoes)
 
     def post(self):
