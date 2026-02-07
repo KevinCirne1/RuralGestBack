@@ -8,7 +8,7 @@ class Solicitacao(db.Model):
     __tablename__ = 'solicitacao'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     data_execucao: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default='Pendente')
     # NOVO: Motivo caso seja recusada

@@ -13,8 +13,13 @@ class Agricultor(db.Model):
     cpf: Mapped[str] = mapped_column(String(20), unique=True, nullable=True)
     comunidade: Mapped[str] = mapped_column(String(100), nullable=False)
     contato: Mapped[str] = mapped_column(String(20), nullable=True)
-    data_atualizacao_cadastro: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     
+    data_atualizacao_cadastro: Mapped[datetime] = mapped_column(
+        DateTime, 
+        default=datetime.utcnow, 
+        onupdate=datetime.utcnow,
+        nullable=True 
+    )
     # NOVO
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=True)
 

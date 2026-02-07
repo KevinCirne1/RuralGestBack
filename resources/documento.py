@@ -6,7 +6,10 @@ from marshmallow import ValidationError
 from schemas import DocumentoListaSchema, DocumentoLoadSchema
 import os
 
-# --- Instâncias dos Schemas 
+# --- IMPORTANTE: Importar o gerador de PDF ---
+from helpers.pdf.gerador_pdf import gerar_pdf_solicitacao
+
+# --- Instâncias dos Schemas ---
 documento_schema_carga = DocumentoLoadSchema()
 documentos_schema_lista = DocumentoListaSchema(many=True)
 documento_schema_detalhado = DocumentoListaSchema() 
@@ -22,20 +25,30 @@ class DocumentoListResource(Resource):
         return documentos_schema_lista.dump(documentos)
 
     def post(self):
-        # Registo manual de documento (raramente usado agora com a automação)
+        # Gera o PDF e cria o registro no banco
         json_data = request.get_json()
         try:
             data = documento_schema_carga.load(json_data)
-            Solicitacao.query.get_or_404(data['solicitacao_id'])
             
+            # 1. Busca a solicitação (necessária para preencher o PDF)
+            solicitacao = Solicitacao.query.get_or_404(data['solicitacao_id'])
+            
+            # 2. Instancia o documento (o __init__ gera o nome do arquivo e hash)
             novo_doc = Documento(
                 solicitacao_id=data['solicitacao_id'],
                 tipo_documento=data['tipo_documento']
             )
             
+            # 3. GERA O ARQUIVO FÍSICO NO DISCO (Correção Principal)
+            # Passamos o objeto solicitacao, o tipo e o nome do arquivo gerado
+            gerar_pdf_solicitacao(solicitacao, data['tipo_documento'], novo_doc.arquivo_pdf)
+            
+            # 4. Salva no banco de dados
             db.session.add(novo_doc)
             db.session.commit()
+            
             return documento_schema_detalhado.dump(novo_doc), 201
+            
         except ValidationError as err:
             return {"messages": err.messages}, 400
 
@@ -46,11 +59,16 @@ class DocumentoResource(Resource):
     
     def delete(self, documento_id):
         doc = Documento.query.get_or_404(documento_id)
-        # Opcional: Remover ficheiro físico ao apagar da DB
+        
+        # Remove ficheiro físico ao apagar da DB para não deixar lixo
         pasta = os.path.abspath("documentos_gerados")
         caminho = os.path.join(pasta, doc.arquivo_pdf)
+        
         if os.path.exists(caminho):
-            os.remove(caminho)
+            try:
+                os.remove(caminho)
+            except Exception as e:
+                print(f"Erro ao apagar arquivo físico: {e}")
             
         db.session.delete(doc)
         db.session.commit()
@@ -60,8 +78,8 @@ class DocumentoResource(Resource):
 class DocumentoDownloadResource(Resource):
     def get(self, documento_id):
         """
-        Garante o envio do ficheiro PDF binário para o navegador.
-        Caminho sugerido: GET /documentos/download/<int:documento_id>
+        Envia o ficheiro PDF binário para o navegador.
+        Rota sugerida no app.py: api.add_resource(DocumentoDownloadResource, '/documentos/download/<int:documento_id>')
         """
         doc = Documento.query.get_or_404(documento_id)
         

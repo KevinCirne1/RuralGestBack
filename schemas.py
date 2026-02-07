@@ -72,7 +72,7 @@ class PropriedadeListaSchema(ma.Schema):
 class UsuarioListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     nome = fields.Str()
-    login = fields.Email()
+    login = fields.Str()
     perfil = fields.Str()
 
 class ServicoListaSchema(ma.Schema):
@@ -150,7 +150,7 @@ class PropriedadeLoadSchema(BaseLoadSchema):
 
 class UsuarioLoadSchema(BaseLoadSchema):
     nome = fields.Str(required=True)
-    login = fields.Email(required=True)
+    login = fields.Str(required=True)
     senha = fields.Str(required=True, load_only=True)
     perfil = fields.Str(required=True)
 
