@@ -1,6 +1,7 @@
 import click
 from models.usuario import Usuario
 from models.veiculo import Veiculo
+from models.agricultor import Agricultor
 from helpers.database import db
 from sqlalchemy import text
 
@@ -28,26 +29,54 @@ def seed_admin():
 
 @click.command('seed_agricultor')
 def seed_agricultor():
-    """Cria um utilizador com perfil de Agricultor para testes de login."""
+    """Cria um agricultor completo (Usuário + Dados Pessoais) para testes."""
     try:
-        login = click.prompt('Digite o login para o agricultor', type=str)
-        nome = click.prompt('Digite o nome do agricultor', type=str)
-        senha = click.prompt('Digite a senha', type=str, hide_input=True, confirmation_prompt=True)
+        # 1. Dados de Acesso (Usuario)
+        click.echo("\n--- Dados de Acesso ---")
+        login = click.prompt('Login (Email/CPF)', type=str)
+        senha = click.prompt('Senha', type=str, hide_input=True, confirmation_prompt=True)
         
         if Usuario.query.filter_by(login=login).first():
-            click.echo('Erro: O utilizador com este login já existe.')
+            click.echo('Erro: Já existe um usuário com este login.')
             return
 
-        # Cria o utilizador com perfil 'agricultor'
-        # Nota: Isto cria um login no sistema. Não cria o registo na tabela 'Agricultor' (dados pessoais),
-        # apenas na tabela 'Usuario' para permitir o acesso ao sistema.
-        agricultor_user = Usuario(nome=nome, login=login, senha=senha, perfil='agricultor')
+        # 2. Dados Pessoais (Agricultor)
+        click.echo("\n--- Dados Pessoais ---")
+        nome = click.prompt('Nome Completo', type=str)
+        cpf = click.prompt('CPF', type=str)
+        comunidade = click.prompt('Comunidade', type=str)
+        contato = click.prompt('Contato (Tel)', type=str, default="00 0000-0000")
+
+        if Agricultor.query.filter_by(cpf=cpf).first():
+            click.echo('Erro: Já existe um agricultor com este CPF.')
+            return
+
+        # 3. Criação no Banco (Transação Única)
         
-        db.session.add(agricultor_user)
+        # Passo A: Cria o Usuário
+        novo_usuario = Usuario(nome=nome, login=login, senha=senha, perfil='agricultor')
+        db.session.add(novo_usuario)
+        db.session.flush() # Gera o ID do usuário sem fechar a transação
+
+        # Passo B: Cria o Agricultor vinculado ao Usuário
+        novo_agricultor = Agricultor(
+            nome=nome,
+            cpf=cpf,
+            comunidade=comunidade,
+            contato=contato,
+            usuario_id=novo_usuario.id # <--- O VÍNCULO MÁGICO
+        )
+        db.session.add(novo_agricultor)
+
+        # Passo C: Salva tudo
         db.session.commit()
-        click.echo(f'Utilizador Agricultor "{nome}" criado com sucesso!')
+        
+        click.echo(f'\nSUCESSO: Agricultor "{nome}" cadastrado!')
+        click.echo(f' -> ID Usuário: {novo_usuario.id}')
+        click.echo(f' -> ID Agricultor: {novo_agricultor.id}')
 
     except Exception as e:
+        db.session.rollback()
         click.echo(f"Erro ao criar o agricultor: {e}")
 
 @click.command('reset_db')

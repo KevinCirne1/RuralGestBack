@@ -22,7 +22,20 @@ class LoginResource(Resource):
         utilizador = Usuario.query.filter_by(login=login).first()
 
         if utilizador and utilizador.verificar_senha(senha):
-            return usuario_schema_detalhado.dump(utilizador), 200
+            # 1. Gera o JSON padrão do usuário
+            response = usuario_schema_detalhado.dump(utilizador)
+            
+            # 2. SE for agricultor, busca o ID dele e INJETA na resposta
+            if utilizador.perfil == 'agricultor':
+                # Busca o agricultor que tem este usuario_id
+                agricultor = Agricultor.query.filter_by(usuario_id=utilizador.id).first()
+                if agricultor:
+                    # Adiciona o campo mágico que o Frontend está esperando
+                    response['agricultor_id'] = agricultor.id
+                    # Se quiser mandar o objeto completo, descomente abaixo:
+                    # response['agricultor'] = agricultor_schema_detalhado.dump(agricultor)
+            
+            return response, 200
         
         return {"message": "Credenciais inválidas"}, 401
     

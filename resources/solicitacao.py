@@ -17,6 +17,7 @@ solicitacao_schema_carga = SolicitacaoLoadSchema()
 class SolicitacaoListResource(Resource):
     def get(self):
         operador_id = request.args.get('operador_id')
+        agricultor_id = request.args.get('agricultor_id') 
         status = request.args.get('status')
         
         # Debug: Imprime no terminal para sabermos se o filtro chegou
@@ -29,6 +30,9 @@ class SolicitacaoListResource(Resource):
         # 3. Aplica filtro de Operador (se houver)
         if operador_id:
             query = query.filter_by(operador_id=operador_id)
+
+        if agricultor_id:
+            query = query.filter_by(agricultor_id=agricultor_id)
         
         # 4. Aplica filtro de Status (se houver)
         if status:
