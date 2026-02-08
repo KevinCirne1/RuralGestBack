@@ -75,7 +75,7 @@ api.add_resource(DashboardGraficosResource, '/dashboard/graficos')
 api.add_resource(DocumentoListResource, '/documentos')
 api.add_resource(DocumentoResource, '/documentos/<int:documento_id>')
 api.add_resource(NotificacaoListResource, '/notificacoes')
-api.add_resource(NotificacaoLerResource, '/notificacoes/<int:notificacao_id>/ler')
+api.add_resource(NotificacaoLerResource, '/notificacoes/<int:notificacao_id>')
 
 #  ROTA DE DOWNLOAD 
 api.add_resource(DocumentoDownloadResource, '/documentos/download/<int:documento_id>')
