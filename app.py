@@ -38,7 +38,7 @@ app.cli.add_command(seed_agricultor)
 
 # --- ROTAS DA API ---
 
-# Autenticação e Cadastro (SÓ UMA VEZ AGORA)
+# Autenticação e Cadastro 
 api.add_resource(LoginResource, '/login')
 api.add_resource(RegistroAgricultorResource, '/register') 
 
