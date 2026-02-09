@@ -1,7 +1,8 @@
 from datetime import datetime
 from flask import request
 from flask_restful import Resource
-from models import Solicitacao, Notificacao, Usuario, Documento
+from sqlalchemy import and_
+from models import Solicitacao, Notificacao, Usuario, Documento, Propriedade
 from helpers.database import db
 from marshmallow import ValidationError
 from schemas import (
@@ -49,6 +50,37 @@ class SolicitacaoListResource(Resource):
         
         try:
             data = solicitacao_schema_carga.load(json_data)
+            propriedade = Propriedade.query.get(data['propriedade_id'])
+
+            # 2. Se não existir, erro
+            if not propriedade:
+                return {"message": "A propriedade informada não existe."}, 404
+
+            # 3. Verifica se o dono da propriedade é o mesmo agricultor da solicitação
+            # Nota: Convertemos para String ou Int para garantir a comparação
+            if str(propriedade.agricultor_id) != str(data['agricultor_id']):
+                return {
+                    "message": "Erro de Validação",
+                    "errors": {
+                        "propriedade_id": "Esta propriedade não pertence ao agricultor selecionado."
+                    }
+                }, 400
+            
+            pedido_duplicado = Solicitacao.query.filter(
+                and_(
+                    Solicitacao.agricultor_id == data['agricultor_id'],
+                    Solicitacao.propriedade_id == data['propriedade_id'],
+                    Solicitacao.servico_id == data['servico_id'],
+                    Solicitacao.status.in_(['Pendente', 'Em Andamento', 'EM ANDAMENTO'])
+                )
+            ).first()
+
+            if pedido_duplicado:
+                return {
+                    "message": "Atenção: Você já tem um pedido em aberto para este serviço nesta propriedade.",
+                    "id_existente": pedido_duplicado.id
+                }, 409 # Conflict
+            
             nova_solicitacao = Solicitacao(data_solicitacao=datetime.now(), **data)
             db.session.add(nova_solicitacao)
             db.session.commit()
@@ -83,6 +115,7 @@ class SolicitacaoResource(Resource):
         json_data = request.get_json()
         try:
             data = solicitacao_schema_carga.load(json_data, partial=True)
+            status_antigo = solicitacao.status
             
             # Atualiza os campos enviados
             for key, value in data.items():
@@ -97,6 +130,12 @@ class SolicitacaoResource(Resource):
                 solicitacao.data_execucao = datetime.now()
                 print(f"DEBUG: Data de execução preenchida automaticamente para {solicitacao.data_execucao}")
             # -------------------------------------
+            if 'status' in data and data['status'] != status_antigo:
+                agricultor = solicitacao.agricultor
+                # Verifica se o agricultor tem um usuário vinculado para receber a notificação
+                if agricultor and agricultor.usuario_id:
+                    msg = f"Sua solicitação mudou para: {solicitacao.status}"
+                    db.session.add(Notificacao(usuario_id=agricultor.usuario_id, mensagem=msg))
 
             db.session.commit()
             return solicitacao_schema_detalhado.dump(solicitacao)
