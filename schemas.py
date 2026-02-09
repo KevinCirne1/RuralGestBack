@@ -1,6 +1,6 @@
 from helpers.database import ma
-from marshmallow import fields, EXCLUDE
-
+from marshmallow import fields, EXCLUDE,validate, validates, ValidationError
+import re
 # --- Schemas de Visualização (Saída) ---
 
 class VeiculoSimplesSchema(ma.Schema):
@@ -87,6 +87,7 @@ class SolicitacaoListaSchema(ma.Schema):
     data_solicitacao = fields.DateTime()
     status = fields.Str()
     motivo_recusa = fields.Str()
+    observacoes = fields.Str()
     agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
     servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
     propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
@@ -138,6 +139,12 @@ class AgricultorLoadSchema(BaseLoadSchema):
     cpf = fields.Str(required=True)
     comunidade = fields.Str(required=True)
     contato = fields.Str(required=True)
+    @validates('cpf')
+    def validate_cpf(self, value):
+        # Remove caracteres não numéricos
+        cpf_limpo = re.sub(r'[^0-9]', '', value)
+        if len(cpf_limpo) != 11:
+            raise ValidationError('O CPF deve conter 11 dígitos.')
 
 class PropriedadeLoadSchema(BaseLoadSchema):
     terreno = fields.Str(required=True)
