@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List
 from datetime import datetime
-from sqlalchemy import String, DateTime, func, ForeignKey
+from sqlalchemy import String, DateTime, func, ForeignKey,Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from helpers.database import db
 
@@ -13,6 +13,9 @@ class Agricultor(db.Model):
     cpf: Mapped[str] = mapped_column(String(20), unique=True, nullable=True)
     comunidade: Mapped[str] = mapped_column(String(100), nullable=False)
     contato: Mapped[str] = mapped_column(String(20), nullable=True)
+    documentacao_validada: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Aqui guardamos o número do ITR, CCIR ou Conta de Luz
+    comprovante_residencia: Mapped[str] = mapped_column(String(50), nullable=True) 
     
     data_atualizacao_cadastro: Mapped[datetime] = mapped_column(
         DateTime, 

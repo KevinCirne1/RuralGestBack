@@ -30,7 +30,7 @@ def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     c.setFont("Helvetica-Bold", 14)
     titulo = "PROTOCOLO DE SOLICITAÇÃO" if tipo_doc == "PROTOCOLO" else "RELATÓRIO DE CONCLUSÃO DE SERVIÇO"
     c.drawCentredString(width / 2, height - 5*cm, titulo)
-    
+    doc_num = solicitacao.agricultor.numero_documento if solicitacao.agricultor.numero_documento else "Não Informado"
     # --- Dados ---
     c.setFont("Helvetica", 12)
     y = height - 7*cm
@@ -44,6 +44,7 @@ def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     escrever_linha("Data", solicitacao.data_solicitacao.strftime("%d/%m/%Y"))
     escrever_linha("Agricultor", solicitacao.agricultor.nome)
     escrever_linha("CPF", solicitacao.agricultor.cpf)
+    escrever_linha("Nº Documento/Residência", doc_num)
     escrever_linha("Propriedade", solicitacao.propriedade.terreno)
     escrever_linha("Serviço Solicitado", solicitacao.servico.nome_servico)
     escrever_linha("Status Atual", solicitacao.status)

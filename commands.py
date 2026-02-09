@@ -46,6 +46,11 @@ def seed_agricultor():
         cpf = click.prompt('CPF', type=str)
         comunidade = click.prompt('Comunidade', type=str)
         contato = click.prompt('Contato (Tel)', type=str, default="00 0000-0000")
+        # Pergunta se já quer validar agora (para facilitar testes)
+        validar_agora = click.confirm('Deseja validar a documentação agora (Simular Admin)?', default=True)
+        num_doc = None
+        if validar_agora:
+            num_doc = click.prompt('Número do Comprovante de Residência', type=str, default="CCIR-123456")
 
         if Agricultor.query.filter_by(cpf=cpf).first():
             click.echo('Erro: Já existe um agricultor com este CPF.')
@@ -64,9 +69,12 @@ def seed_agricultor():
             cpf=cpf,
             comunidade=comunidade,
             contato=contato,
-            usuario_id=novo_usuario.id # <--- O VÍNCULO MÁGICO
-        )
+            usuario_id=novo_usuario.id, # <--- O VÍNCULO MÁGICO
+            documentacao_validada=validar_agora, # Usa o que escolheu
+            comprovante_residencia=num_doc,
+            )
         db.session.add(novo_agricultor)
+
 
         # Passo C: Salva tudo
         db.session.commit()

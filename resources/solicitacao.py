@@ -2,7 +2,7 @@ from datetime import datetime
 from flask import request
 from flask_restful import Resource
 from sqlalchemy import and_
-from models import Solicitacao, Notificacao, Usuario, Documento, Propriedade
+from models import Solicitacao, Notificacao, Usuario, Documento, Propriedade, Agricultor, Servico
 from helpers.database import db
 from marshmallow import ValidationError
 from schemas import (
@@ -51,6 +51,8 @@ class SolicitacaoListResource(Resource):
         try:
             data = solicitacao_schema_carga.load(json_data)
             propriedade = Propriedade.query.get(data['propriedade_id'])
+            servico = Servico.query.get(data['servico_id']) # Necessário para RF13
+            agricultor = Agricultor.query.get(data['agricultor_id'])
 
             # 2. Se não existir, erro
             if not propriedade:
@@ -65,6 +67,31 @@ class SolicitacaoListResource(Resource):
                         "propriedade_id": "Esta propriedade não pertence ao agricultor selecionado."
                     }
                 }, 400
+            
+            if not agricultor.documentacao_validada:
+                return {
+                    "message": "Documentação Pendente.",
+                    "detalhe": "Seu comprovante de residência/documentação ainda não foi validado pela Secretaria. Compareça à prefeitura."
+                }, 403
+            
+            if agricultor.data_atualizacao_cadastro:
+                dias_sem_atualizar = (datetime.utcnow() - agricultor.data_atualizacao_cadastro).days
+                if dias_sem_atualizar > 365:
+                    return {
+                        "message": "Cadastro desatualizado.",
+                        "detalhe": f"Seus dados não são atualizados há {dias_sem_atualizar} dias. Por favor, atualize seu perfil antes de solicitar."
+                    }, 403 # Forbidden
+            # ------------------------------------------
+
+            # --- RF13: CONTROLE DE CAPACIDADE / ÁREA (NOVO) ---
+            # Regra: Se a propriedade é maior que a capacidade do maquinário/serviço.
+            # Ex: O trator só aguenta 5 hectares, mas a propriedade tem 20.
+            if servico.capacidade_hectares and propriedade.area_exploravel:
+                if propriedade.area_exploravel > servico.capacidade_hectares:
+                    return {
+                        "message": "Capacidade excedida.",
+                        "detalhe": f"A área da propriedade ({propriedade.area_exploravel}ha) excede a capacidade deste serviço ({servico.capacidade_hectares}ha)."
+                    }, 400
             
             pedido_duplicado = Solicitacao.query.filter(
                 and_(
