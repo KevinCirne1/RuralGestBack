@@ -75,7 +75,6 @@ class SolicitacaoListResource(Resource):
                     "id_existente": pedido_duplicado.id
                 }, 409
 
-            # 4. Fuso Horário Brasil
             fuso_brasil = pytz.timezone('America/Sao_Paulo')
             data_hora_brasil = datetime.now(fuso_brasil).replace(tzinfo=None)
 
@@ -90,7 +89,6 @@ class SolicitacaoListResource(Resource):
                 db.session.rollback()
                 return {"message": "Erro de integridade no banco.", "detalhe": str(e)}, 400
             
-            # 6. NOTIFICAÇÃO PERSONALIZADA (Ajustada conforme seu pedido)
             try:
                 # Busca os objetos para extrair os nomes reais
                 agri_obj = Agricultor.query.get(id_agricultor_enviado)
@@ -150,9 +148,7 @@ class SolicitacaoResource(Resource):
                                 "detalhe": f"Não é permitido alterar '{campo}' após processamento."
                             }, 400
 
-            # === CORREÇÃO DEFINITIVA AQUI ===
-            # Não confiamos no 'data' do Marshmallow para o operador_id.
-            # Pegamos direto do JSON bruto.
+        
             
             raw_operador_id = json_data.get('operador_id')
             
