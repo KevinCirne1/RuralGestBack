@@ -16,20 +16,12 @@ from resources.propriedade import PropriedadeResource, PropriedadeListResource, 
 from resources.usuario import UsuarioResource, UsuarioListResource
 from resources.servico import ServicoResource, ServicoListResource
 from resources.solicitacao import SolicitacaoResource, SolicitacaoListResource
-<<<<<<< HEAD
-from resources.auth import LoginResource, RegistroAgricultorResource # Import do Registro
-=======
 from resources.auth import LoginResource, RegistroAgricultorResource 
->>>>>>> Matheus
 from resources.veiculo import VeiculoResource, VeiculoListResource
 from resources.notificacao import NotificacaoListResource, NotificacaoLerResource
 from resources.visita_tecnica import VisitaListResource, VisitaResource
 from resources.dashboard import DashboardResumoResource, DashboardGraficosResource 
-<<<<<<< HEAD
-from resources.documento import DocumentoListResource, DocumentoResource
-=======
 from resources.documento import DocumentoListResource, DocumentoResource, DocumentoDownloadResource
->>>>>>> Matheus
 
 # Inicialização das extensões
 db.init_app(app)
@@ -45,13 +37,10 @@ app.cli.add_command(seed_veiculos)
 app.cli.add_command(seed_agricultor)
 
 # --- ROTAS DA API ---
-<<<<<<< HEAD
-=======
 
 # Autenticação e Cadastro
 api.add_resource(LoginResource, '/login')
 api.add_resource(RegistroAgricultorResource, '/register') 
->>>>>>> Matheus
 
 # Autenticação e Cadastro
 api.add_resource(LoginResource, '/login')
@@ -68,10 +57,6 @@ api.add_resource(AllPropriedadesListResource, '/propriedades')
 api.add_resource(UsuarioListResource, '/usuarios')
 api.add_resource(UsuarioResource, '/usuarios/<int:usuario_id>')
 
-<<<<<<< HEAD
-=======
-
->>>>>>> Matheus
 # Serviços e Solicitações
 api.add_resource(ServicoListResource, '/servicos')
 api.add_resource(ServicoResource, '/servicos/<int:servico_id>')
@@ -92,14 +77,10 @@ api.add_resource(DashboardGraficosResource, '/dashboard/graficos')
 api.add_resource(DocumentoListResource, '/documentos')
 api.add_resource(DocumentoResource, '/documentos/<int:documento_id>')
 api.add_resource(NotificacaoListResource, '/notificacoes')
-<<<<<<< HEAD
-api.add_resource(NotificacaoLerResource, '/notificacoes/<int:notificacao_id>/ler')
-=======
 api.add_resource(NotificacaoLerResource, '/notificacoes/<int:notificacao_id>')
 
 #  ROTA DE DOWNLOAD 
 api.add_resource(DocumentoDownloadResource, '/documentos/download/<int:documento_id>')
->>>>>>> Matheus
 
 if __name__ == '__main__':
     app.run(debug=True)

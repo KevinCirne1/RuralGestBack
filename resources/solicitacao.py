@@ -38,11 +38,6 @@ class SolicitacaoListResource(Resource):
 
     def post(self):
         json_data = request.get_json()
-<<<<<<< HEAD
-        print(f"\n--- DEBUG POST SOLICITACAO ---")
-        print(f"Dados: {json_data}")
-=======
->>>>>>> Matheus
         
         try:
             # 1. Validação do Marshmallow
@@ -80,11 +75,7 @@ class SolicitacaoListResource(Resource):
             db.session.add(nova_solicitacao)
             db.session.commit()
             
-<<<<<<< HEAD
             # Notificação de Admins
-=======
-            # 5. Notificação para Gestores/Técnicos
->>>>>>> Matheus
             try:
                 admins = Usuario.query.filter(Usuario.perfil.in_(['gestor', 'tecnico'])).all()
                 for admin in admins:
@@ -95,16 +86,6 @@ class SolicitacaoListResource(Resource):
                 print(f"Aviso: Erro na notificação: {e}")
 
             return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
-<<<<<<< HEAD
-=======
-
-        except ValidationError as err:
-            return {"errors": err.messages}, 400
-        except Exception as e:
-            db.session.rollback()
-            return {"message": "Erro interno", "detalhe": str(e)}, 500
-
->>>>>>> Matheus
 
         except ValidationError as err:
             return {"errors": err.messages}, 400
@@ -121,15 +102,6 @@ class SolicitacaoResource(Resource):
 
     def put(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
-<<<<<<< HEAD
-        json_data = request.get_json()
-        try:
-            data = solicitacao_schema_carga.load(json_data, partial=True)
-            for key, value in data.items():
-                setattr(solicitacao, key, value)
-            db.session.commit()
-            return solicitacao_schema_detalhado.dump(solicitacao)
-=======
         
         # --- TRAVA DE SEGURANÇA: Só edita se estiver Pendente ---
         if solicitacao.status.lower() != 'pendente':
@@ -163,14 +135,11 @@ class SolicitacaoResource(Resource):
             db.session.commit()
             return solicitacao_schema_detalhado.dump(solicitacao)
             
->>>>>>> Matheus
         except ValidationError as err:
             return {"messages": err.messages}, 400
 
     def delete(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
-<<<<<<< HEAD
-=======
         
         # --- TRAVA DE SEGURANÇA: Só deleta se estiver Pendente ---
         if solicitacao.status.lower() != 'pendente':
@@ -178,7 +147,6 @@ class SolicitacaoResource(Resource):
                 "message": "Não é possível excluir uma solicitação que já foi processada."
             }, 400
         
->>>>>>> Matheus
         db.session.delete(solicitacao)
         db.session.commit()
         return '', 204
