@@ -1,8 +1,10 @@
 from datetime import datetime
+import pytz
 from flask import request
 from flask_restful import Resource
 from sqlalchemy import and_
-from models import Solicitacao, Notificacao, Usuario, Documento, Propriedade
+from sqlalchemy.exc import IntegrityError
+from models import Solicitacao, Notificacao, Usuario, Propriedade, Agricultor, Servico
 from helpers.database import db
 from marshmallow import ValidationError
 from schemas import (
@@ -18,6 +20,7 @@ solicitacao_schema_carga = SolicitacaoLoadSchema()
 
 class SolicitacaoListResource(Resource):
     def get(self):
+        """Lista solicitações com filtros opcionais"""
         operador_id = request.args.get('operador_id')
         agricultor_id = request.args.get('agricultor_id') 
         status = request.args.get('status')
@@ -26,17 +29,16 @@ class SolicitacaoListResource(Resource):
 
         if operador_id:
             query = query.filter_by(operador_id=operador_id)
-
         if agricultor_id:
             query = query.filter_by(agricultor_id=agricultor_id)
-        
         if status:
             query = query.filter_by(status=status)
             
         solicitacoes = query.all()
-        return solicitacoes_schema_lista.dump(solicitacoes)
+        return solicitacoes_schema_lista.dump(solicitacoes), 200
 
     def post(self):
+        """Cria uma nova solicitação com validação de posse e notificação personalizada"""
         json_data = request.get_json()
         
         try:
@@ -48,16 +50,19 @@ class SolicitacaoListResource(Resource):
             if not propriedade:
                 return {"message": "A propriedade informada não existe."}, 404
 
-            if str(propriedade.agricultor_id) != str(data['agricultor_id']):
+            id_agricultor_enviado = int(data['agricultor_id'])
+            id_dono_da_terra = int(propriedade.agricultor_id)
+
+            if id_dono_da_terra != id_agricultor_enviado:
                 return {
-                    "message": "Erro de Validação",
-                    "errors": {"propriedade_id": "Esta propriedade não pertence ao agricultor selecionado."}
-                }, 400
+                    "message": "Acesso negado",
+                    "detalhe": {"propriedade_id": "Esta propriedade pertence a outro agricultor. Você só pode solicitar serviços para suas próprias terras ."}
+                }, 403
             
-            # 3. Prevenção de Duplicidade: Já existe pedido aberto para este serviço nesta terra?
+            # 3. Prevenção de Duplicidade: Evita pedidos idênticos em aberto
             pedido_duplicado = Solicitacao.query.filter(
                 and_(
-                    Solicitacao.agricultor_id == data['agricultor_id'],
+                    Solicitacao.agricultor_id == id_agricultor_enviado,
                     Solicitacao.propriedade_id == data['propriedade_id'],
                     Solicitacao.servico_id == data['servico_id'],
                     Solicitacao.status.in_(['Pendente', 'Em Andamento', 'EM ANDAMENTO'])
@@ -70,20 +75,42 @@ class SolicitacaoListResource(Resource):
                     "id_existente": pedido_duplicado.id
                 }, 409
 
-            # 4. Criação
-            nova_solicitacao = Solicitacao(data_solicitacao=datetime.now(), **data)
+            # 4. Fuso Horário Brasil
+            fuso_brasil = pytz.timezone('America/Sao_Paulo')
+            data_hora_brasil = datetime.now(fuso_brasil).replace(tzinfo=None)
+
+            # 5. Criação da Solicitação
+            nova_solicitacao = Solicitacao(data_solicitacao=data_hora_brasil, **data)
             db.session.add(nova_solicitacao)
             db.session.commit()
             
-            # Notificação de Admins
             try:
+                db.session.commit()
+            except IntegrityError as e:
+                db.session.rollback()
+                return {"message": "Erro de integridade no banco.", "detalhe": str(e)}, 400
+            
+            # 6. NOTIFICAÇÃO PERSONALIZADA (Ajustada conforme seu pedido)
+            try:
+                # Busca os objetos para extrair os nomes reais
+                agri_obj = Agricultor.query.get(id_agricultor_enviado)
+                serv_obj = Servico.query.get(data['servico_id'])
+                
+                # Monta a string: "Nome do Agricultor solicitou Nome do Serviço"
+                nome_agricultor = agri_obj.nome if agri_obj else "Um agricultor"
+                nome_servico = serv_obj.nome_servico if serv_obj else "um serviço"
+                
+                msg_admin = f"{nome_agricultor} solicitou {nome_servico}"
+
+                # Envia a notificação para todos os gestores e técnicos
                 admins = Usuario.query.filter(Usuario.perfil.in_(['gestor', 'tecnico'])).all()
                 for admin in admins:
-                    db.session.add(Notificacao(usuario_id=admin.id, mensagem="Novo Pedido de Serviço Criado"))
+                    db.session.add(Notificacao(usuario_id=admin.id, mensagem=msg_admin))
+                
                 db.session.commit()
             except Exception as e:
                 db.session.rollback()
-                print(f"Aviso: Erro na notificação: {e}")
+                print(f"Aviso: Falha ao gerar notificação: {e}")
 
             return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
@@ -91,60 +118,88 @@ class SolicitacaoListResource(Resource):
             return {"errors": err.messages}, 400
         except Exception as e:
             db.session.rollback()
-            print(f"ERRO CRÍTICO: {str(e)}")
             return {"message": "Erro interno", "detalhe": str(e)}, 500
 
-# --- ESTA É A CLASSE QUE ESTAVA FALTANDO E CAUSOU O ERRO NO APP.PY ---
 class SolicitacaoResource(Resource):
     def get(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
-        return solicitacao_schema_detalhado.dump(solicitacao)
+        return solicitacao_schema_detalhado.dump(solicitacao), 200
 
     def put(self, solicitacao_id):
+        """Atualiza a solicitação com atribuição FORÇADA de técnico"""
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
-        
-        # --- TRAVA DE SEGURANÇA: Só edita se estiver Pendente ---
-        if solicitacao.status.lower() != 'pendente':
-            return {
-                "message": "Bloqueio de Edição",
-                "detalhe": f"Esta solicitação está com status '{solicitacao.status}' e não pode mais ser alterada."
-            }, 400
-        # -------------------------------------------------------
-
         json_data = request.get_json()
-        try:
-            data = solicitacao_schema_carga.load(json_data, partial=True)
-            status_antigo = solicitacao.status
-            
-            # Atualiza os campos
-            for key, value in data.items():
-                setattr(solicitacao, key, value)
-            
-            # Automação de Data de Execução
-            status_fim = ['Concluída', 'Concluida', 'CONCLUÍDA', 'Finalizada']
-            if solicitacao.status in status_fim and 'data_execucao' not in json_data:
-                solicitacao.data_execucao = datetime.now()
+        
+        # DEBUG: Mostra o que chegou do React antes de qualquer validação
+        print(f"DEBUG: JSON Bruto Recebido: {json_data}") 
 
-            # Notifica o agricultor se o status mudar (caso o técnico mude de Pendente para outro)
-            if 'status' in data and data['status'] != status_antigo:
-                agricultor = solicitacao.agricultor
-                if agricultor and agricultor.usuario_id:
+        try:
+            # Carrega validações padrão
+            data = solicitacao_schema_carga.load(json_data, partial=True)
+            
+            status_atual_no_banco = solicitacao.status.lower()
+
+            # --- TRAVA DE SEGURANÇA (Mantida) ---
+            if status_atual_no_banco != 'pendente':
+                campos_bloqueados = ['agricultor_id', 'propriedade_id', 'servico_id']
+                for campo in campos_bloqueados:
+                    if campo in data:
+                        if str(data[campo]) != str(getattr(solicitacao, campo)):
+                            return {
+                                "message": "Dados Protegidos",
+                                "detalhe": f"Não é permitido alterar '{campo}' após processamento."
+                            }, 400
+
+            # === CORREÇÃO DEFINITIVA AQUI ===
+            # Não confiamos no 'data' do Marshmallow para o operador_id.
+            # Pegamos direto do JSON bruto.
+            
+            raw_operador_id = json_data.get('operador_id')
+            
+            # Verifica se veio algo (pode ser int ou string numérica)
+            if raw_operador_id is not None and str(raw_operador_id) != "":
+                print(f"DEBUG: Forçando atualização do OPERADOR para ID {raw_operador_id}")
+                solicitacao.operador_id = int(raw_operador_id)
+
+            # Mesma coisa para o veículo
+            raw_veiculo_id = json_data.get('veiculo_id')
+            if raw_veiculo_id is not None and str(raw_veiculo_id) != "":
+                solicitacao.veiculo_id = int(raw_veiculo_id)
+
+            # Campos normais continuam via Schema
+            if 'status' in data:
+                solicitacao.status = data['status']
+            
+            if 'observacoes' in data:
+                solicitacao.observacoes = data['observacoes']
+
+            if 'data_execucao' in data:
+                solicitacao.data_execucao = data['data_execucao']
+
+            # Notificação (Mantida)
+            if 'status' in data and data['status'] != solicitacao.status:
+                if solicitacao.agricultor and solicitacao.agricultor.usuario_id:
                     msg = f"Sua solicitação mudou para: {solicitacao.status}"
-                    db.session.add(Notificacao(usuario_id=agricultor.usuario_id, mensagem=msg))
+                    db.session.add(Notificacao(usuario_id=solicitacao.agricultor.usuario_id, mensagem=msg))
 
             db.session.commit()
-            return solicitacao_schema_detalhado.dump(solicitacao)
+            
+            return solicitacao_schema_detalhado.dump(solicitacao), 200
             
         except ValidationError as err:
             return {"messages": err.messages}, 400
+        except Exception as e:
+            db.session.rollback()
+            print(f"ERRO NO PUT: {e}")
+            return {"message": "Erro interno", "detalhe": str(e)}, 500
 
     def delete(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         
-        # --- TRAVA DE SEGURANÇA: Só deleta se estiver Pendente ---
         if solicitacao.status.lower() != 'pendente':
             return {
-                "message": "Não é possível excluir uma solicitação que já foi processada."
+                "message": "Ação Proibida",
+                "detalhe": "Não é possível excluir uma solicitação que já foi processada."
             }, 400
         
         db.session.delete(solicitacao)

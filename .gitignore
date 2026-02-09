@@ -54,3 +54,10 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+
+
+
+
+documentos_gerados/
+__pycache__/
+*.pdf
