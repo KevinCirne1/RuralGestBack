@@ -3,8 +3,8 @@ from flask_restful import Resource
 from models.usuario import Usuario
 from models.agricultor import Agricultor
 from helpers.database import db
-from schemas import UsuarioDetalhadoSchema, AgricultorLoadSchema, UsuarioLoadSchema
-from marshmallow import ValidationError
+from schemas import UsuarioDetalhadoSchema, AgricultorLoadSchema
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Instância do schema para este resource
 usuario_schema_detalhado = UsuarioDetalhadoSchema()
@@ -13,74 +13,108 @@ agricultor_schema_detalhado = AgricultorLoadSchema()
 class LoginResource(Resource):
     def post(self):
         json_data = request.get_json()
-        login = json_data.get('login')
-        senha = json_data.get('senha')
+        
+        # Tratamento de dados (Limpeza de espaços e conversão para string)
+        raw_login = json_data.get('login', '')
+        raw_senha = json_data.get('senha', '')
+        
+        login = str(raw_login).strip()
+        senha = str(raw_senha).strip()
 
         if not login or not senha:
             return {"message": "Login e senha são obrigatórios"}, 400
 
+        # Busca no banco
         utilizador = Usuario.query.filter_by(login=login).first()
 
-        if utilizador and utilizador.verificar_senha(senha):
-            return usuario_schema_detalhado.dump(utilizador), 200
+        if not utilizador:
+            return {"message": "Credenciais inválidas"}, 401
         
-        return {"message": "Credenciais inválidas"}, 401
-    
+        # Verificação de Senha
+        senha_correta = False
+        
+        try:
+            # Tenta verificar o hash seguro
+            if check_password_hash(utilizador.senha, senha):
+                senha_correta = True
+            # Fallback para senhas antigas (opcional, pode remover se quiser forçar segurança)
+            elif utilizador.senha == senha:
+                senha_correta = True
+        except Exception:
+            pass
+
+        if senha_correta:
+            # Gera o JSON do usuário
+            response = usuario_schema_detalhado.dump(utilizador)
+            
+            # Busca dados extras se for produtor/agricultor
+            if utilizador.perfil in ['agricultor', 'produtor']:
+                agricultor = Agricultor.query.filter_by(usuario_id=utilizador.id).first()
+                if agricultor:
+                    response['agricultor_id'] = agricultor.id
+            
+            return response, 200
+        else:
+            return {"message": "Credenciais inválidas"}, 401
+
 class RegistroAgricultorResource(Resource):
     def post(self):
-        """
-        Cria um Usuário (login) e um Agricultor (perfil) numa única transação.
-        Usado tanto pelo Admin no Dashboard quanto pelo Agricultor na tela de Sign Up.
-        """
         json_data = request.get_json()
         
-        # Validação básica de campos obrigatórios
+        # Validação de campos obrigatórios
         required_fields = ['nome', 'login', 'senha', 'cpf', 'comunidade']
         for field in required_fields:
             if field not in json_data:
-                return {"message": f"O campo '{field}' é obrigatório."}, 400
+                # Se faltar login mas tiver CPF, usa o CPF como login
+                if field == 'login' and 'cpf' in json_data:
+                    json_data['login'] = json_data['cpf']
+                else:
+                    return {"message": f"O campo '{field}' é obrigatório."}, 400
 
         try:
-            # 1. Verifica se o login já existe
-            if Usuario.query.filter_by(login=json_data.get('login')).first():
-                return {"message": "Este login/email já está em uso."}, 409
-            
-            # 2. Verifica se o CPF já existe
-            if Agricultor.query.filter_by(cpf=json_data.get('cpf')).first():
-                return {"message": "Este CPF já está registado."}, 409
+            # Tratamento dos dados
+            login_str = str(json_data.get('login')).strip()
+            cpf_str = str(json_data.get('cpf')).strip()
+            senha_str = str(json_data.get('senha')).strip()
 
-            # 3. Cria o Usuário (Login)
-            # Forçamos o perfil 'agricultor' aqui
+            # Verificação de duplicidade
+            if Usuario.query.filter_by(login=login_str).first():
+                return {"message": "Este login já está em uso."}, 409
+            
+            if Agricultor.query.filter_by(cpf=cpf_str).first():
+                return {"message": "Este CPF já está registrado."}, 409
+
+            # Criptografia da senha
+            senha_hash = generate_password_hash(senha_str)
+
+            # Criação do Usuário
             novo_usuario = Usuario(
                 nome=json_data.get('nome'),
-                login=json_data.get('login'),
-                senha=json_data.get('senha'),
-                perfil='agricultor' 
+                login=login_str,
+                senha=senha_hash, 
+                perfil='produtor' 
             )
             
             db.session.add(novo_usuario)
-            db.session.flush() # Gera o ID do usuário sem fechar a transação
+            db.session.flush() # Gera o ID
 
-            # 4. Cria o Perfil de Agricultor e VINCULA ao Usuário criado
+            # Criação do Agricultor vinculado
             novo_agricultor = Agricultor(
                 nome=json_data.get('nome'), 
-                cpf=json_data.get('cpf'),
+                cpf=cpf_str,
                 comunidade=json_data.get('comunidade'),
                 contato=json_data.get('contato'),
-                usuario_id=novo_usuario.id # <-- AQUI ESTÁ O VÍNCULO MÁGICO
+                usuario_id=novo_usuario.id 
             )
             
             db.session.add(novo_agricultor)
-
-            # 5. Salva tudo de uma vez (Transação Atómica)
             db.session.commit()
             
             return {
                 "message": "Conta criada com sucesso!",
-                "usuario": usuario_schema_detalhado.dump(novo_usuario),
-                "agricultor": agricultor_schema_detalhado.dump(novo_agricultor)
+                "usuario": usuario_schema_detalhado.dump(novo_usuario)
             }, 201
 
         except Exception as e:
-            db.session.rollback() # Se der erro em qualquer parte, desfaz tudo
-            return {"message": "Erro interno ao registar.", "error": str(e)}, 500
+            db.session.rollback()
+            return {"message": "Erro interno ao registrar.", "error": str(e)}, 500

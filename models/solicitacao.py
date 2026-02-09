@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from sqlalchemy import DateTime, String, ForeignKey, func
+from sqlalchemy import DateTime, String, ForeignKey, func,Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from helpers.database import db
 
@@ -8,11 +8,12 @@ class Solicitacao(db.Model):
     __tablename__ = 'solicitacao'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     data_execucao: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default='Pendente')
     # NOVO: Motivo caso seja recusada
     motivo_recusa: Mapped[str] = mapped_column(String(255), nullable=True)
+    observacoes: Mapped[str] = mapped_column(Text, nullable=True)
     
     agricultor_id: Mapped[int] = mapped_column(ForeignKey('agricultor.id'), nullable=False)
     propriedade_id: Mapped[int] = mapped_column(ForeignKey('propriedade.id'), nullable=False)
