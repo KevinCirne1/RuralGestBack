@@ -1,9 +1,13 @@
 from flask import Flask
 from flask_restful import Api
 from config import Config
+from helpers.database import db, ma, bcrypt 
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
+bcrypt.init_app(app) 
+
 api = Api(app)
 #jwt = JWTManager() 
 
