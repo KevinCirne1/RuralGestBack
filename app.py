@@ -38,10 +38,9 @@ app.cli.add_command(seed_agricultor)
 
 # --- ROTAS DA API ---
 
-# Autenticação e Cadastro
+# Autenticação e Cadastro 
 api.add_resource(LoginResource, '/login')
 api.add_resource(RegistroAgricultorResource, '/register') 
-
 
 # Agricultores e Propriedades
 api.add_resource(AgricultorListResource, '/agricultores')
@@ -54,7 +53,6 @@ api.add_resource(AllPropriedadesListResource, '/propriedades')
 api.add_resource(UsuarioListResource, '/usuarios')
 api.add_resource(UsuarioResource, '/usuarios/<int:usuario_id>')
 
-
 # Serviços e Solicitações
 api.add_resource(ServicoListResource, '/servicos')
 api.add_resource(ServicoResource, '/servicos/<int:servico_id>')
@@ -62,7 +60,7 @@ api.add_resource(SolicitacaoListResource, '/solicitacoes')
 api.add_resource(SolicitacaoResource, '/solicitacoes/<int:solicitacao_id>')
 
 # Veículos e Visitas
-api.add_resource(VeiculoListResource, '/veiculos') # Adicionei caso faltasse, mas se não tiver o resource importado, pode remover
+api.add_resource(VeiculoListResource, '/veiculos') 
 api.add_resource(VeiculoResource, '/veiculos/<int:veiculo_id>')
 api.add_resource(VisitaListResource, '/visitas')
 api.add_resource(VisitaResource, '/visitas/<int:visita_id>')

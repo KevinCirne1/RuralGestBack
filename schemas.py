@@ -29,6 +29,7 @@ class ServicoSimplesSchema(ma.Schema):
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
+    data_execucao = fields.DateTime()
     status = fields.Str()
 
 class VisitaTecnicaSimplesSchema(ma.Schema):
@@ -89,8 +90,15 @@ class ServicoListaSchema(ma.Schema):
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
+    
+    
+    data_execucao = fields.DateTime() 
+    operador_id = fields.Int() 
+    veiculo_id = fields.Int()  
+    
     status = fields.Str()
     motivo_recusa = fields.Str()
+    observacoes = fields.Str()
     observacoes = fields.Str()
     agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
     servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
@@ -102,7 +110,6 @@ class VisitaTecnicaListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_visita = fields.DateTime()
     observacoes = fields.Str()
-    # Mostramos o nome do técnico e o ID da solicitação
     tecnico_nome = fields.Function(lambda obj: obj.tecnico.nome if obj.tecnico else "N/A")
     solicitacao_id = fields.Int()
 
@@ -119,10 +126,7 @@ class UsuarioDetalhadoSchema(UsuarioListaSchema):
     solicitacoes_atendidas = fields.Nested("SolicitacaoSimplesSchema", many=True, dump_only=True)
 
 class SolicitacaoDetalhadoSchema(SolicitacaoListaSchema):
-    data_execucao = fields.DateTime()
-    propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
-    operador = fields.Nested(UsuarioSimplesSchema, dump_only=True)
-    veiculo = fields.Nested(VeiculoSimplesSchema, dump_only=True)
+    pass
 
 class VisitaTecnicaDetalhadoSchema(VisitaTecnicaListaSchema):
     pass
@@ -181,8 +185,11 @@ class SolicitacaoLoadSchema(BaseLoadSchema):
     operador_id = fields.Int(allow_none=True)
     veiculo_id = fields.Int(allow_none=True)
     status = fields.Str()
-    data_execucao = fields.DateTime(allow_none=True)
+    
+    data_execucao = fields.DateTime(allow_none=True) 
+    
     motivo_recusa = fields.Str(allow_none=True)
+    observacoes = fields.Str(allow_none=True) 
 
 class VisitaTecnicaLoadSchema(ma.Schema):
     class Meta:
@@ -205,7 +212,3 @@ class DocumentoLoadSchema(ma.Schema):
         unknown = EXCLUDE
     solicitacao_id = fields.Int(required=True)
     tipo_documento = fields.Str(required=True)
-
-
-    
-    
