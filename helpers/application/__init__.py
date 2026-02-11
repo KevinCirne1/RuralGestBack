@@ -1,32 +1,31 @@
 from flask import Flask
 from flask_restful import Api
 from config import Config
-from helpers.database import db, ma, bcrypt 
-
+from helpers.database import db, ma, bcrypt
+from flask_caching import Cache # <--- Importar
+import os
 
 app = Flask(__name__)
 app.config.from_object(Config)
-bcrypt.init_app(app) 
+
+# Configuração do Redis (Pega do .env ou usa padrão local)
+# Se estiver rodando no docker-compose, o host será 'redis'
+redis_host = os.getenv('REDIS_HOST', 'localhost')
+redis_port = os.getenv('REDIS_PORT', 6379)
+
+# Configura o Cache
+cache_config = {
+    "DEBUG": True,
+    "CACHE_TYPE": "RedisCache",
+    "CACHE_DEFAULT_TIMEOUT": 300, # 5 minutos padrão
+    "CACHE_REDIS_HOST": redis_host,
+    "CACHE_REDIS_PORT": redis_port
+}
+
+# Inicializa extensões
+db.init_app(app)
+ma.init_app(app)
+bcrypt.init_app(app)
+cache = Cache(app, config=cache_config) # <--- Inicializa o Cache
 
 api = Api(app)
-#jwt = JWTManager() 
-
-"""
-@jwt.unauthorized_loader
-def unauthorized_callback(reason):
-    Chamado quando um token é necessário mas não foi fornecido.
-    Retorna um JSON informando que é necessário um token de autorização
-    com status HTTP 401 (Unauthorized).
-
-@jwt.invalid_token_loader
-def invalid_token_callback(error):
-    Chamado quando um token inválido é fornecido (ex: assinatura errada).
-    Retorna um JSON informando que o token é inválido ou malformado
-    com status HTTP 401 (Unauthorized).
-
-@jwt.expired_token_loader
-def expired_token_callback(jwt_header, jwt_payload):
-    Chamado quando um token expirado é fornecido.
-    Retorna um JSON informando que o token expirou
-    com status HTTP 401 (Unauthorized).
-"""

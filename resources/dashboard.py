@@ -2,8 +2,10 @@ from flask_restful import Resource
 from sqlalchemy import func, or_
 from helpers.database import db
 from models import Agricultor, Solicitacao, Servico, Propriedade
+from helpers.application import cache
 
 class DashboardResumoResource(Resource):
+    @cache.cached(timeout=60)
     def get(self):
         """Devolve os contadores principais para os cartões e gráfico de status"""
         
@@ -41,6 +43,7 @@ class DashboardResumoResource(Resource):
         }, 200
 
 class DashboardGraficosResource(Resource):
+    @cache.cached(timeout=300)
     def get(self):
         """Devolve dados formatados para o gráfico de barras (Serviços)"""
         
