@@ -21,9 +21,10 @@ services:
       # Configurações Java para otimizar memória
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
     networks:
-      - net-ruralgest
+      - ruralgest-net
     depends_on:
       - redis
+      - db   
 
   # --- REDIS (Cache para o Backend) ---
   redis:
@@ -33,7 +34,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - net-ruralgest
+      - ruralgest-net
 
   # --- POSTGRESQL (Banco de Dados Principal) ---
   # ADICIONADO AGORA: O coração do seu sistema
@@ -46,7 +47,7 @@ services:
       POSTGRES_PASSWORD: dev007  # Senha 
       POSTGRES_DB: ruralgest
     ports:
-      - "5432:5432" 
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data # <--- ISSO SALVA SEUS DADOS!
     networks:

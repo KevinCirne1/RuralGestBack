@@ -2,7 +2,7 @@ from flask import Flask
 from flask_restful import Api
 from config import Config
 from helpers.database import db, ma, bcrypt
-from flask_caching import Cache # <--- Importar
+from flask_caching import Cache 
 import os
 
 app = Flask(__name__)

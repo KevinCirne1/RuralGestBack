@@ -11,7 +11,7 @@ pipeline {
     environment {
         // Agora apontamos para o nome do serviço definido no docker-compose
         DATABASE_URL = "sqlite:///:memory:" // Mantemos SQLite para o teste não apagar seu banco real
-        SECRET_KEY = "chave-secreta-de-teste"
+        SECRET_KEY = "12345"
         
         // CONFIGURAÇÃO DO REDIS REAL
         REDIS_HOST = "ruralgest_redis" 

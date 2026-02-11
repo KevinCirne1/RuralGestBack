@@ -24,10 +24,10 @@ from resources.dashboard import DashboardResumoResource, DashboardGraficosResour
 from resources.documento import DocumentoListResource, DocumentoResource, DocumentoDownloadResource
 
 # Inicialização das extensões
-db.init_app(app)
-ma.init_app(app)
+#db.init_app(app)
+#ma.init_app(app)
 cors.init_app(app, supports_credentials=True)
-bcrypt.init_app(app)
+#bcrypt.init_app(app)
 migrate = Migrate(app, db)
 
 # Registrar comandos de terminal
