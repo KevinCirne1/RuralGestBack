@@ -1,7 +1,8 @@
 from helpers.database import ma
 from marshmallow import fields, EXCLUDE,validate, validates, ValidationError
 import re
-# --- Schemas de Visualização (Saída) ---
+
+#Schemas de Visualização
 
 class VeiculoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -29,7 +30,7 @@ class ServicoSimplesSchema(ma.Schema):
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
-    data_execucao = fields.DateTime()
+    data_execucao = fields.DateTime() 
     status = fields.Str()
 
 class VisitaTecnicaSimplesSchema(ma.Schema):
@@ -90,10 +91,8 @@ class ServicoListaSchema(ma.Schema):
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
-    
-    
     data_execucao = fields.DateTime() 
-    operador_id = fields.Int() 
+    operador_id = fields.Int()
     veiculo_id = fields.Int()  
     
     status = fields.Str()
@@ -185,9 +184,7 @@ class SolicitacaoLoadSchema(BaseLoadSchema):
     operador_id = fields.Int(allow_none=True)
     veiculo_id = fields.Int(allow_none=True)
     status = fields.Str()
-    
     data_execucao = fields.DateTime(allow_none=True) 
-    
     motivo_recusa = fields.Str(allow_none=True)
     observacoes = fields.Str(allow_none=True) 
 

@@ -52,6 +52,7 @@ class SolicitacaoListResource(Resource):
                 db.session.rollback()
                 return {"message": "Erro de integridade no banco.", "detalhe": str(e)}, 400
             
+            # 6. NOTIFICAÇÃO PERSONALIZADA 
             try:
                 # Busca os objetos para extrair os nomes reais
                 agri_obj = Agricultor.query.get(id_agricultor_enviado)
@@ -97,21 +98,48 @@ class SolicitacaoResource(Resource):
         try:
             # Carrega validações padrão
             data = solicitacao_schema_carga.load(json_data, partial=True)
-            status_antigo = solicitacao.status
             
-            # Atualiza os campos enviados
-            for key, value in data.items():
-                setattr(solicitacao, key, value)
+            status_atual_no_banco = solicitacao.status.lower()
+
+            # TRAVA DE SEGURANÇA 
+            if status_atual_no_banco != 'pendente':
+                campos_bloqueados = ['agricultor_id', 'propriedade_id', 'servico_id']
+                for campo in campos_bloqueados:
+                    if campo in data:
+                        if str(data[campo]) != str(getattr(solicitacao, campo)):
+                            return {
+                                "message": "Dados Protegidos",
+                                "detalhe": f"Não é permitido alterar '{campo}' após processamento."
+                            }, 400
+
             
-            # --- AUTOMAÇÃO DE DATA DE EXECUÇÃO ---
-            # Lista de status que indicam fim de serviço
-            status_fim = ['Concluída', 'Concluida', 'CONCLUÍDA', 'Finalizada']
+            raw_operador_id = json_data.get('operador_id')
             
-            # Se o status é de conclusão E o usuário não enviou uma data manual:
-            if solicitacao.status in status_fim and 'data_execucao' not in json_data:
-                solicitacao.data_execucao = datetime.now()
-                print(f"DEBUG: Data de execução preenchida automaticamente para {solicitacao.data_execucao}")
-            # -------------------------------------
+            # Verifica se veio algo (pode ser int ou string numérica)
+            if raw_operador_id is not None and str(raw_operador_id) != "":
+                print(f"DEBUG: Forçando atualização do OPERADOR para ID {raw_operador_id}")
+                solicitacao.operador_id = int(raw_operador_id)
+
+            # Mesma coisa para o veículo
+            raw_veiculo_id = json_data.get('veiculo_id')
+            if raw_veiculo_id is not None and str(raw_veiculo_id) != "":
+                solicitacao.veiculo_id = int(raw_veiculo_id)
+
+            # Campos normais continuam via Schema
+            if 'status' in data:
+                solicitacao.status = data['status']
+            
+            if 'observacoes' in data:
+                solicitacao.observacoes = data['observacoes']
+
+            if 'data_execucao' in data:
+                solicitacao.data_execucao = data['data_execucao']
+
+            # Notificação 
+            if 'status' in data and data['status'] != solicitacao.status:
+                if solicitacao.agricultor and solicitacao.agricultor.usuario_id:
+                    msg = f"Sua solicitação mudou para: {solicitacao.status}"
+                    db.session.add(Notificacao(usuario_id=solicitacao.agricultor.usuario_id, mensagem=msg))
 
             db.session.commit()
             

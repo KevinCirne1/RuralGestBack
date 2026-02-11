@@ -37,7 +37,7 @@ class LoginResource(Resource):
             # Tenta verificar o hash seguro
             if check_password_hash(utilizador.senha, senha):
                 senha_correta = True
-            # Fallback para senhas antigas (opcional, pode remover se quiser forçar segurança)
+            # Fallback para senhas antigas 
             elif utilizador.senha == senha:
                 senha_correta = True
         except Exception:

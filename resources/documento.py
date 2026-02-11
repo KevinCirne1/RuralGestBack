@@ -6,7 +6,6 @@ from marshmallow import ValidationError
 from schemas import DocumentoListaSchema, DocumentoLoadSchema
 import os
 
-# --- IMPORTANTE: Importar o gerador de PDF ---
 from helpers.pdf.gerador_pdf import gerar_pdf_solicitacao
 
 # --- Instâncias dos Schemas ---
@@ -16,7 +15,6 @@ documento_schema_detalhado = DocumentoListaSchema()
 
 class DocumentoListResource(Resource):
     def get(self):
-        # Lista documentos. Pode filtrar por solicitação: ?solicitacao_id=X
         solicitacao_id = request.args.get('solicitacao_id')
         if solicitacao_id:
             documentos = Documento.query.filter_by(solicitacao_id=solicitacao_id).all()
@@ -39,7 +37,7 @@ class DocumentoListResource(Resource):
                 tipo_documento=data['tipo_documento']
             )
             
-            # 3. GERA O ARQUIVO FÍSICO NO DISCO (Correção Principal)
+            # 3. GERA O ARQUIVO FÍSICO NO DISCO 
             # Passamos o objeto solicitacao, o tipo e o nome do arquivo gerado
             gerar_pdf_solicitacao(solicitacao, data['tipo_documento'], novo_doc.arquivo_pdf)
             

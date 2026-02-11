@@ -14,10 +14,9 @@ class DashboardResumoResource(Resource):
         total_solicitacoes = db.session.query(func.count(Solicitacao.id)).scalar()
         total_hectares = db.session.query(func.sum(Propriedade.area_total)).scalar() or 0
         
-        # 2. Contagem Inteligente de Status (Case Insensitive e Agrupada)
-        # Pega todos os status do banco para não errar maiuscula/minuscula
+        # Pega todos os status do banco 
         all_status = db.session.query(Solicitacao.status).all()
-        status_list = [s[0].upper() for s in all_status] # Converte tudo para maiúsculo
+        status_list = [s[0].upper() for s in all_status] 
         
         # Agrupa nas 3 categorias do gráfico
         pendentes = status_list.count('PENDENTE')

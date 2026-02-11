@@ -11,7 +11,6 @@ class Servico(db.Model):
     nome_servico: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     descricao: Mapped[str] = mapped_column(String(255), nullable=True)
     capacidade_hectares: Mapped[float] = mapped_column(Float, nullable=True)
-    # NOVO: Define qual tipo de veículo é necessário
     tipo_veiculo: Mapped[str] = mapped_column(String(50), nullable=True)
 
     solicitacoes: Mapped[List["Solicitacao"]] = relationship(back_populates="servico")

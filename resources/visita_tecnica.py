@@ -13,7 +13,7 @@ visitas_schema_lista = VisitaTecnicaListaSchema(many=True)
 
 class VisitaListResource(Resource):
     def get(self):
-        # Lista todas as visitas (pode filtrar por solicitação se passar ?solicitacao_id=X)
+        # Lista todas as visitas 
         solicitacao_id = request.args.get('solicitacao_id')
         if solicitacao_id:
             visitas = VisitaTecnica.query.filter_by(solicitacao_id=solicitacao_id).all()
@@ -26,8 +26,6 @@ class VisitaListResource(Resource):
         try:
             data = visita_schema_carga.load(json_data)
             nova_visita = VisitaTecnica(**data)
-            
-            # Opcional: Atualizar status da solicitação para "Em Andamento" ou "Concluída"
             solicitacao = Solicitacao.query.get(data['solicitacao_id'])
             if solicitacao and solicitacao.status == 'Pendente':
                 solicitacao.status = 'Em Andamento'
