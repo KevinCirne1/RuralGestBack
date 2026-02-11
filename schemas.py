@@ -2,7 +2,7 @@ from helpers.database import ma
 from marshmallow import fields, EXCLUDE, validate, validates, ValidationError
 import re
 
-# --- Schemas de Visualização (Saída) ---
+#Schemas de Visualização
 
 class VeiculoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -29,7 +29,7 @@ class ServicoSimplesSchema(ma.Schema):
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
-    data_execucao = fields.DateTime() # Adicionado aqui também por segurança
+    data_execucao = fields.DateTime() 
     status = fields.Str()
 
 class VisitaTecnicaSimplesSchema(ma.Schema):
@@ -87,11 +87,9 @@ class ServicoListaSchema(ma.Schema):
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     data_solicitacao = fields.DateTime()
-    
-    # MUDANÇA 1: Adicionado para aparecer nos Cards do Admin e Tabela do Produtor
     data_execucao = fields.DateTime() 
-    operador_id = fields.Int() # Essencial para o filtro da Agenda funcionar!
-    veiculo_id = fields.Int()  # Essencial para mostrar a máquina
+    operador_id = fields.Int()
+    veiculo_id = fields.Int()  
     
     status = fields.Str()
     motivo_recusa = fields.Str()
@@ -122,7 +120,6 @@ class UsuarioDetalhadoSchema(UsuarioListaSchema):
     solicitacoes_atendidas = fields.Nested("SolicitacaoSimplesSchema", many=True, dump_only=True)
 
 class SolicitacaoDetalhadoSchema(SolicitacaoListaSchema):
-    # Removido a definição duplicada pois agora ele herda do ListaSchema corrigido
     pass
 
 class VisitaTecnicaDetalhadoSchema(VisitaTecnicaListaSchema):
@@ -179,12 +176,9 @@ class SolicitacaoLoadSchema(BaseLoadSchema):
     operador_id = fields.Int(allow_none=True)
     veiculo_id = fields.Int(allow_none=True)
     status = fields.Str()
-    
-    # MUDANÇA 2: Permitir que o Python receba a data do React
     data_execucao = fields.DateTime(allow_none=True) 
-    
     motivo_recusa = fields.Str(allow_none=True)
-    observacoes = fields.Str(allow_none=True) # Adicionado para garantir que salve as obs
+    observacoes = fields.Str(allow_none=True) 
 
 class VisitaTecnicaLoadSchema(ma.Schema):
     class Meta:

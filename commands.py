@@ -64,7 +64,7 @@ def seed_agricultor():
             cpf=cpf,
             comunidade=comunidade,
             contato=contato,
-            usuario_id=novo_usuario.id # <--- O VÍNCULO MÁGICO
+            usuario_id=novo_usuario.id 
         )
         db.session.add(novo_agricultor)
 

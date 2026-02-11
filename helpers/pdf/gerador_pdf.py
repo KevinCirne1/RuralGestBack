@@ -1,5 +1,3 @@
-# helpers/pdf/gerador_pdf.py
-
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
@@ -20,7 +18,6 @@ def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     c = canvas.Canvas(caminho_completo, pagesize=A4)
     width, height = A4
     
-    # --- CABEÇALHO OFICIAL ---
     c.setFont("Helvetica-Bold", 16)
     c.drawString(2*cm, height - 2*cm, "Prefeitura Municipal de Pirpirituba")
     c.setFont("Helvetica", 12)
@@ -28,13 +25,12 @@ def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     
     c.line(2*cm, height - 3.2*cm, 19*cm, height - 3.2*cm)
     
-    # --- TÍTULO DINÂMICO ---
     c.setFont("Helvetica-Bold", 14)
     status_upper = solicitacao.status.upper()
     
     if status_upper == "CONCLUÍDA":
         titulo = "RELATÓRIO DE CONCLUSÃO DE SERVIÇO"
-        c.setFillColorRGB(0, 0.4, 0) # Verde para sucesso
+        c.setFillColorRGB(0, 0.4, 0)
     else:
         titulo = "PROTOCOLO DE SOLICITAÇÃO"
         c.setFillColorRGB(0, 0, 0)
@@ -42,7 +38,6 @@ def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     c.drawCentredString(width / 2, height - 5*cm, titulo)
     c.setFillColorRGB(0, 0, 0)
     
-    # --- CORPO DOS DADOS ---
     c.setFont("Helvetica", 12)
     y = height - 7*cm
     
@@ -61,7 +56,6 @@ def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     escrever_linha("Propriedade", solicitacao.propriedade.terreno)
     escrever_linha("Serviço", solicitacao.servico.nome_servico)
     
-    # --- BLOCO ESPECÍFICO PARA CONCLUÍDAS ---
     if status_upper == "CONCLUÍDA":
         y -= 0.5*cm
         c.line(2.5*cm, y + 0.5*cm, 18*cm, y + 0.5*cm)
@@ -75,12 +69,10 @@ def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     else:
         escrever_linha("Status Atual", solicitacao.status, destaque=True)
 
-    # --- ASSINATURA ---
     y -= 4*cm
     c.line(5*cm, y, 16*cm, y)
     c.drawCentredString(width / 2, y - 0.5*cm, "Assinatura do Agricultor")
     
-    # --- RODAPÉ ---
     c.setFont("Helvetica-Oblique", 8)
     c.drawString(2*cm, 2*cm, "Documento gerado pelo sistema RuralGest.")
     c.drawString(2*cm, 1.5*cm, f"Emissão: {datetime.now().strftime('%d/%m/%Y %H:%M')}")

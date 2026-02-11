@@ -1,6 +1,6 @@
 from flask import request
 from flask_restful import Resource
-from models import Agricultor, Usuario  # Importando Usuario
+from models import Agricultor, Usuario  
 from helpers.database import db
 from marshmallow import ValidationError
 from werkzeug.security import generate_password_hash # Para segurança da senha
@@ -11,12 +11,12 @@ from schemas import (
     AgricultorLoadSchema
 )
 
-# --- Instâncias dos Schemas ---
+#Instâncias dos Schemas
 agricultor_schema_detalhado = AgricultorDetalhadoSchema()
 agricultores_schema_lista = AgricultorListaSchema(many=True)
 agricultor_schema_carga = AgricultorLoadSchema()
 
-# --- Resources ---
+
 
 class AgricultorListResource(Resource):
     def get(self):

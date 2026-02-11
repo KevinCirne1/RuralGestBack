@@ -90,7 +90,7 @@ class SolicitacaoListResource(Resource):
                 db.session.rollback()
                 return {"message": "Erro de integridade no banco.", "detalhe": str(e)}, 400
             
-            # 6. NOTIFICAÇÃO PERSONALIZADA (Ajustada conforme seu pedido)
+            # 6. NOTIFICAÇÃO PERSONALIZADA 
             try:
                 # Busca os objetos para extrair os nomes reais
                 agri_obj = Agricultor.query.get(id_agricultor_enviado)
@@ -139,7 +139,7 @@ class SolicitacaoResource(Resource):
             
             status_atual_no_banco = solicitacao.status.lower()
 
-            # --- TRAVA DE SEGURANÇA (Mantida) ---
+            # TRAVA DE SEGURANÇA 
             if status_atual_no_banco != 'pendente':
                 campos_bloqueados = ['agricultor_id', 'propriedade_id', 'servico_id']
                 for campo in campos_bloqueados:
@@ -150,9 +150,6 @@ class SolicitacaoResource(Resource):
                                 "detalhe": f"Não é permitido alterar '{campo}' após processamento."
                             }, 400
 
-            # === CORREÇÃO DEFINITIVA AQUI ===
-            # Não confiamos no 'data' do Marshmallow para o operador_id.
-            # Pegamos direto do JSON bruto.
             
             raw_operador_id = json_data.get('operador_id')
             
@@ -176,7 +173,7 @@ class SolicitacaoResource(Resource):
             if 'data_execucao' in data:
                 solicitacao.data_execucao = data['data_execucao']
 
-            # Notificação (Mantida)
+            # Notificação 
             if 'status' in data and data['status'] != solicitacao.status:
                 if solicitacao.agricultor and solicitacao.agricultor.usuario_id:
                     msg = f"Sua solicitação mudou para: {solicitacao.status}"

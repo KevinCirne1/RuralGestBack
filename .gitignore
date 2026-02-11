@@ -61,3 +61,6 @@ dist/
 documentos_gerados/
 __pycache__/
 *.pdf
+
+
+migrations/

@@ -13,7 +13,6 @@ class Propriedade(db.Model):
     area_total: Mapped[float] = mapped_column(Float)
     area_exploravel: Mapped[float] = mapped_column(Float)
     coordenadas_geograficas: Mapped[str] = mapped_column(String(50))
-    # NOVOS CAMPOS
     cultura_principal: Mapped[str] = mapped_column(String(100), nullable=True)
     quantidade_gado: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
