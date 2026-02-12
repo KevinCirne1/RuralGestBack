@@ -18,7 +18,10 @@ from resources.servico import ServicoResource, ServicoListResource
 from resources.solicitacao import SolicitacaoResource, SolicitacaoListResource
 from resources.auth import LoginResource, RegistroAgricultorResource 
 from resources.veiculo import VeiculoResource, VeiculoListResource
-from resources.notificacao import NotificacaoListResource, NotificacaoLerResource
+
+# ADICIONADO: NotificacaoLerTudoResource na importação
+from resources.notificacao import NotificacaoListResource, NotificacaoLerResource, NotificacaoLerTudoResource
+
 from resources.visita_tecnica import VisitaListResource, VisitaResource
 from resources.dashboard import DashboardResumoResource, DashboardGraficosResource 
 from resources.documento import DocumentoListResource, DocumentoResource, DocumentoDownloadResource
@@ -69,13 +72,17 @@ api.add_resource(VisitaResource, '/visitas/<int:visita_id>')
 api.add_resource(DashboardResumoResource, '/dashboard/resumo')
 api.add_resource(DashboardGraficosResource, '/dashboard/graficos')
 
-# Documentos e Notificações
+# Documentos
 api.add_resource(DocumentoListResource, '/documentos')
 api.add_resource(DocumentoResource, '/documentos/<int:documento_id>')
+
+# Notificações (CORRIGIDO E ATUALIZADO)
 api.add_resource(NotificacaoListResource, '/notificacoes')
 api.add_resource(NotificacaoLerResource, '/notificacoes/<int:notificacao_id>')
+# ADICIONADO: Nova rota para marcar todas como lidas de uma vez
+api.add_resource(NotificacaoLerTudoResource, '/notificacoes/ler-tudo')
 
-#  ROTA DE DOWNLOAD 
+# ROTA DE DOWNLOAD 
 api.add_resource(DocumentoDownloadResource, '/documentos/download/<int:documento_id>')
 
 if __name__ == '__main__':

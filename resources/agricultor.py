@@ -5,6 +5,7 @@ from helpers.database import db
 from marshmallow import ValidationError
 
 
+
 from schemas import (
     AgricultorDetalhadoSchema, 
     AgricultorListaSchema, 

@@ -16,6 +16,9 @@ class LoginResource(Resource):
         # Pega os dados brutos
         login = json_data.get('login')
         senha = json_data.get('senha')
+        # Pega os dados brutos
+        login = json_data.get('login')
+        senha = json_data.get('senha')
 
         if not login or not senha:
             return {"message": "Login e senha são obrigatórios"}, 400
@@ -23,6 +26,10 @@ class LoginResource(Resource):
         # Busca no banco
         utilizador = Usuario.query.filter_by(login=login).first()
 
+        # Verifica se o usuário existe E se a senha bate
+        # IMPORTANTE: Usamos o método do próprio model, que usa o Bcrypt correto
+        if utilizador and utilizador.verificar_senha(senha):
+            
         # Verifica se o usuário existe E se a senha bate
         # IMPORTANTE: Usamos o método do próprio model, que usa o Bcrypt correto
         if utilizador and utilizador.verificar_senha(senha):
@@ -37,6 +44,8 @@ class LoginResource(Resource):
                     response['agricultor_id'] = agricultor.id
             
             return response, 200
+        
+        return {"message": "Credenciais inválidas"}, 401
         
         return {"message": "Credenciais inválidas"}, 401
 

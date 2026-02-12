@@ -44,7 +44,6 @@ class VeiculoResource(Resource):
 
     def delete(self, veiculo_id):
         veiculo = Veiculo.query.get_or_404(veiculo_id)
-        # Opcional: Verificar uso antes de deletar
         db.session.delete(veiculo)
         db.session.commit()
         return '', 204

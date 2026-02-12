@@ -2,7 +2,7 @@ from helpers.database import ma
 from marshmallow import fields, EXCLUDE,validate, validates, ValidationError
 import re
 
-#Schemas de Visualização
+# --- Schemas de Visualização ---
 
 class VeiculoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -80,6 +80,7 @@ class UsuarioListaSchema(ma.Schema):
     nome = fields.Str()
     login = fields.Str()
     perfil = fields.Str()
+    contato = fields.Str() 
 
 class ServicoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -93,8 +94,7 @@ class SolicitacaoListaSchema(ma.Schema):
     data_solicitacao = fields.DateTime()
     data_execucao = fields.DateTime() 
     operador_id = fields.Int()
-    veiculo_id = fields.Int()  
-    
+    veiculo_id = fields.Int()   
     status = fields.Str()
     motivo_recusa = fields.Str()
     observacoes = fields.Str()
@@ -131,6 +131,7 @@ class VisitaTecnicaDetalhadoSchema(VisitaTecnicaListaSchema):
     pass
 
 # --- Schemas de Carga (Load) ---
+
 class BaseLoadSchema(ma.Schema):
     class Meta:
         unknown = EXCLUDE
@@ -170,6 +171,7 @@ class UsuarioLoadSchema(BaseLoadSchema):
     login = fields.Str(required=True)
     senha = fields.Str(required=True, load_only=True)
     perfil = fields.Str(required=True)
+    contato = fields.Str(allow_none=True)
 
 class ServicoLoadSchema(BaseLoadSchema):
     nome_servico = fields.Str(required=True)
@@ -184,9 +186,17 @@ class SolicitacaoLoadSchema(BaseLoadSchema):
     operador_id = fields.Int(allow_none=True)
     veiculo_id = fields.Int(allow_none=True)
     status = fields.Str()
-    data_execucao = fields.DateTime(allow_none=True) 
     motivo_recusa = fields.Str(allow_none=True)
     observacoes = fields.Str(allow_none=True) 
+    data_execucao = fields.DateTime(allow_none=True, load_default=None)
+
+    @pre_load
+    def process_input(self, data, **kwargs):
+        # Limpa strings vazias do formulário para evitar erros de tipo no Postgres
+        for key, value in data.items():
+            if value == "":
+                data[key] = None
+        return data
 
 class VisitaTecnicaLoadSchema(ma.Schema):
     class Meta:
