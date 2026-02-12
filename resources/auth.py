@@ -4,7 +4,7 @@ from models.usuario import Usuario
 from models.agricultor import Agricultor
 from helpers.database import db
 from schemas import UsuarioDetalhadoSchema, AgricultorLoadSchema
-from werkzeug.security import generate_password_hash, check_password_hash
+
 
 # Instância do schema para este resource
 usuario_schema_detalhado = UsuarioDetalhadoSchema()
@@ -14,12 +14,9 @@ class LoginResource(Resource):
     def post(self):
         json_data = request.get_json()
         
-        # Tratamento de dados (Limpeza de espaços e conversão para string)
-        raw_login = json_data.get('login', '')
-        raw_senha = json_data.get('senha', '')
-        
-        login = str(raw_login).strip()
-        senha = str(raw_senha).strip()
+        # Pega os dados brutos
+        login = json_data.get('login')
+        senha = json_data.get('senha')
 
         if not login or not senha:
             return {"message": "Login e senha são obrigatórios"}, 400
@@ -27,23 +24,10 @@ class LoginResource(Resource):
         # Busca no banco
         utilizador = Usuario.query.filter_by(login=login).first()
 
-        if not utilizador:
-            return {"message": "Credenciais inválidas"}, 401
-        
-        # Verificação de Senha
-        senha_correta = False
-        
-        try:
-            # Tenta verificar o hash seguro
-            if check_password_hash(utilizador.senha, senha):
-                senha_correta = True
-            # Fallback para senhas antigas 
-            elif utilizador.senha == senha:
-                senha_correta = True
-        except Exception:
-            pass
-
-        if senha_correta:
+        # Verifica se o usuário existe E se a senha bate
+        # IMPORTANTE: Usamos o método do próprio model, que usa o Bcrypt correto
+        if utilizador and utilizador.verificar_senha(senha):
+            
             # Gera o JSON do usuário
             response = usuario_schema_detalhado.dump(utilizador)
             
@@ -54,8 +38,8 @@ class LoginResource(Resource):
                     response['agricultor_id'] = agricultor.id
             
             return response, 200
-        else:
-            return {"message": "Credenciais inválidas"}, 401
+        
+        return {"message": "Credenciais inválidas"}, 401
 
 class RegistroAgricultorResource(Resource):
     def post(self):
@@ -84,14 +68,13 @@ class RegistroAgricultorResource(Resource):
             if Agricultor.query.filter_by(cpf=cpf_str).first():
                 return {"message": "Este CPF já está registrado."}, 409
 
-            # Criptografia da senha
-            senha_hash = generate_password_hash(senha_str)
+            
 
             # Criação do Usuário
             novo_usuario = Usuario(
                 nome=json_data.get('nome'),
                 login=login_str,
-                senha=senha_hash, 
+                senha=senha_str,
                 perfil='produtor' 
             )
             

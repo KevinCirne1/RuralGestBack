@@ -3,7 +3,7 @@ from flask_restful import Resource
 from models import Agricultor, Usuario  
 from helpers.database import db
 from marshmallow import ValidationError
-from werkzeug.security import generate_password_hash # Para segurança da senha
+
 
 from schemas import (
     AgricultorDetalhadoSchema, 
@@ -55,7 +55,7 @@ class AgricultorListResource(Resource):
             novo_usuario = Usuario(
                 nome=dados_validados.get('nome'),
                 login=login_usuario,
-                senha=generate_password_hash(senha_digitada), # Criptografa a senha
+                senha = senha_digitada, # Criptografa a senha
                 perfil="produtor" # Define o perfil fixo
             )
 

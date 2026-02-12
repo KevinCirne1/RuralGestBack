@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import List
+from typing import List, Optional
+import bcrypt
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from helpers.database import db
@@ -13,14 +14,18 @@ class Usuario(db.Model):
     senha: Mapped[str] = mapped_column(String(255), nullable=False)
     perfil: Mapped[str] = mapped_column(String(50), nullable=False)
     
+    # --- NOVO CAMPO ---
+    contato: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    # ------------------
+
     solicitacoes_atendidas: Mapped[List["Solicitacao"]] = relationship(back_populates="operador")
 
-    def __init__(self, nome, login, senha, perfil='tecnico'):
+    def __init__(self, nome, login, senha, perfil='tecnico', contato=None):
         self.nome = nome
         self.login = login
-        self.senha = senha
+        self.senha = bcrypt.generate_password_hash(senha).decode('utf-8')
         self.perfil = perfil
+        self.contato = contato  # <--- Adicionado aqui
 
     def verificar_senha(self, senha_texto_plano):
-        """Verifica a senha em texto simples."""
-        return self.senha == senha_texto_plano
+        return bcrypt.check_password_hash(self.senha, senha_texto_plano)

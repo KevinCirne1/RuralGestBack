@@ -18,6 +18,11 @@ solicitacao_schema_detalhado = SolicitacaoDetalhadoSchema()
 solicitacoes_schema_lista = SolicitacaoListaSchema(many=True)
 solicitacao_schema_carga = SolicitacaoLoadSchema()
 
+# Função para garantir o horário de Brasília
+def obter_agora_brasil():
+    fuso_brasil = pytz.timezone('America/Sao_Paulo')
+    return datetime.now(fuso_brasil).replace(tzinfo=None)
+
 class SolicitacaoListResource(Resource):
     def get(self):
         """Lista solicitações com filtros opcionais"""
@@ -38,15 +43,13 @@ class SolicitacaoListResource(Resource):
         return solicitacoes_schema_lista.dump(solicitacoes), 200
 
     def post(self):
-        """Cria uma nova solicitação com validação de posse e notificação personalizada"""
+        """Cria uma nova solicitação e notifica a equipe administrativa"""
         json_data = request.get_json()
         
         try:
-            # 1. Validação do Marshmallow
             data = solicitacao_schema_carga.load(json_data)
-            
-            # 2. Validação de Posse: A propriedade pertence ao agricultor?
             propriedade = Propriedade.query.get(data['propriedade_id'])
+            
             if not propriedade:
                 return {"message": "A propriedade informada não existe."}, 404
 
@@ -56,10 +59,9 @@ class SolicitacaoListResource(Resource):
             if id_dono_da_terra != id_agricultor_enviado:
                 return {
                     "message": "Acesso negado",
-                    "detalhe": {"propriedade_id": "Esta propriedade pertence a outro agricultor. Você só pode solicitar serviços para suas próprias terras ."}
+                    "detalhe": {"propriedade_id": "Esta propriedade pertence a outro agricultor."}
                 }, 403
             
-            # 3. Prevenção de Duplicidade: Evita pedidos idênticos em aberto
             pedido_duplicado = Solicitacao.query.filter(
                 and_(
                     Solicitacao.agricultor_id == id_agricultor_enviado,
@@ -71,18 +73,13 @@ class SolicitacaoListResource(Resource):
 
             if pedido_duplicado:
                 return {
-                    "message": "Atenção: Você já tem um pedido em aberto para este serviço nesta propriedade.",
+                    "message": "Atenção: Você já tem um pedido em aberto para este serviço.",
                     "id_existente": pedido_duplicado.id
                 }, 409
 
-            # 4. Fuso Horário Brasil
-            fuso_brasil = pytz.timezone('America/Sao_Paulo')
-            data_hora_brasil = datetime.now(fuso_brasil).replace(tzinfo=None)
-
-            # 5. Criação da Solicitação
-            nova_solicitacao = Solicitacao(data_solicitacao=data_hora_brasil, **data)
+            # Criação com hora de Brasília
+            nova_solicitacao = Solicitacao(data_solicitacao=obter_agora_brasil(), **data)
             db.session.add(nova_solicitacao)
-            db.session.commit()
             
             try:
                 db.session.commit()
@@ -90,27 +87,20 @@ class SolicitacaoListResource(Resource):
                 db.session.rollback()
                 return {"message": "Erro de integridade no banco.", "detalhe": str(e)}, 400
             
-            # 6. NOTIFICAÇÃO PERSONALIZADA 
+            # Notificação para Admin
             try:
-                # Busca os objetos para extrair os nomes reais
                 agri_obj = Agricultor.query.get(id_agricultor_enviado)
                 serv_obj = Servico.query.get(data['servico_id'])
-                
-                # Monta a string: "Nome do Agricultor solicitou Nome do Serviço"
-                nome_agricultor = agri_obj.nome if agri_obj else "Um agricultor"
-                nome_servico = serv_obj.nome_servico if serv_obj else "um serviço"
-                
-                msg_admin = f"{nome_agricultor} solicitou {nome_servico}"
+                msg_admin = f"{agri_obj.nome if agri_obj else 'Um agricultor'} solicitou {serv_obj.nome_servico if serv_obj else 'um serviço'}"
 
-                # Envia a notificação para todos os gestores e técnicos
-                admins = Usuario.query.filter(Usuario.perfil.in_(['gestor', 'tecnico'])).all()
-                for admin in admins:
-                    db.session.add(Notificacao(usuario_id=admin.id, mensagem=msg_admin))
+                equipe = Usuario.query.filter(Usuario.perfil.in_(['admin', 'gestor', 'tecnico'])).all()
+                for membro in equipe:
+                    db.session.add(Notificacao(usuario_id=membro.id, mensagem=msg_admin))
                 
                 db.session.commit()
             except Exception as e:
                 db.session.rollback()
-                print(f"Aviso: Falha ao gerar notificação: {e}")
+                print(f"Erro Notificação Admin: {e}")
 
             return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
@@ -126,78 +116,60 @@ class SolicitacaoResource(Resource):
         return solicitacao_schema_detalhado.dump(solicitacao), 200
 
     def put(self, solicitacao_id):
-        """Atualiza a solicitação com atribuição FORÇADA de técnico"""
+        """Atualiza a solicitação e notifica o agricultor"""
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         json_data = request.get_json()
+        status_anterior = solicitacao.status
         
-        # DEBUG: Mostra o que chegou do React antes de qualquer validação
-        print(f"DEBUG: JSON Bruto Recebido: {json_data}") 
-
         try:
-            # Carrega validações padrão
             data = solicitacao_schema_carga.load(json_data, partial=True)
             
-            status_atual_no_banco = solicitacao.status.lower()
+            if solicitacao.status.lower() != 'pendente':
+                for campo in ['agricultor_id', 'propriedade_id', 'servico_id']:
+                    if campo in data and str(data[campo]) != str(getattr(solicitacao, campo)):
+                        return {"message": "Não é permitido alterar dados base de pedidos processados."}, 400
 
-            # TRAVA DE SEGURANÇA 
-            if status_atual_no_banco != 'pendente':
-                campos_bloqueados = ['agricultor_id', 'propriedade_id', 'servico_id']
-                for campo in campos_bloqueados:
-                    if campo in data:
-                        if str(data[campo]) != str(getattr(solicitacao, campo)):
-                            return {
-                                "message": "Dados Protegidos",
-                                "detalhe": f"Não é permitido alterar '{campo}' após processamento."
-                            }, 400
-
+            if 'operador_id' in json_data:
+                val = json_data.get('operador_id')
+                solicitacao.operador_id = int(val) if val and str(val).strip() != "" else None
             
-            raw_operador_id = json_data.get('operador_id')
-            
-            # Verifica se veio algo (pode ser int ou string numérica)
-            if raw_operador_id is not None and str(raw_operador_id) != "":
-                print(f"DEBUG: Forçando atualização do OPERADOR para ID {raw_operador_id}")
-                solicitacao.operador_id = int(raw_operador_id)
+            if 'veiculo_id' in json_data:
+                val = json_data.get('veiculo_id')
+                solicitacao.veiculo_id = int(val) if val and str(val).strip() != "" else None
 
-            # Mesma coisa para o veículo
-            raw_veiculo_id = json_data.get('veiculo_id')
-            if raw_veiculo_id is not None and str(raw_veiculo_id) != "":
-                solicitacao.veiculo_id = int(raw_veiculo_id)
+            if 'status' in data: solicitacao.status = data['status']
+            if 'observacoes' in data: solicitacao.observacoes = data['observacoes']
+            if 'data_execucao' in data: solicitacao.data_execucao = data['data_execucao']
 
-            # Campos normais continuam via Schema
-            if 'status' in data:
-                solicitacao.status = data['status']
-            
-            if 'observacoes' in data:
-                solicitacao.observacoes = data['observacoes']
-
-            if 'data_execucao' in data:
-                solicitacao.data_execucao = data['data_execucao']
-
-            # Notificação 
-            if 'status' in data and data['status'] != solicitacao.status:
-                if solicitacao.agricultor and solicitacao.agricultor.usuario_id:
-                    msg = f"Sua solicitação mudou para: {solicitacao.status}"
-                    db.session.add(Notificacao(usuario_id=solicitacao.agricultor.usuario_id, mensagem=msg))
+            # --- NOTIFICAÇÃO PERSONALIZADA ---
+            if solicitacao.status != status_anterior:
+                try:
+                    agri = Agricultor.query.get(solicitacao.agricultor_id)
+                    id_destino = agri.usuario_id if (agri and hasattr(agri, 'usuario_id')) else solicitacao.agricultor_id
+                    
+                    serv_obj = Servico.query.get(solicitacao.servico_id)
+                    nome_servico = serv_obj.nome_servico if serv_obj else "serviço"
+                    
+                    msg_produtor = f"A sua solicitação de {nome_servico} foi {solicitacao.status.lower()}."
+                    
+                    # Removido o campo data_criacao daqui para evitar erro de nome de coluna
+                    db.session.add(Notificacao(usuario_id=id_destino, mensagem=msg_produtor))
+                except Exception as e:
+                    print(f"Erro Notificação Produtor: {e}")
 
             db.session.commit()
-            
             return solicitacao_schema_detalhado.dump(solicitacao), 200
             
         except ValidationError as err:
-            return {"messages": err.messages}, 400
+            return {"errors": err.messages}, 400
         except Exception as e:
             db.session.rollback()
-            print(f"ERRO NO PUT: {e}")
-            return {"message": "Erro interno", "detalhe": str(e)}, 500
+            return {"message": "Erro ao atualizar", "detalhe": str(e)}, 500
 
     def delete(self, solicitacao_id):
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
-        
         if solicitacao.status.lower() != 'pendente':
-            return {
-                "message": "Ação Proibida",
-                "detalhe": "Não é possível excluir uma solicitação que já foi processada."
-            }, 400
+            return {"message": "Ação Proibida: Pedido já processado."}, 400
         
         db.session.delete(solicitacao)
         db.session.commit()

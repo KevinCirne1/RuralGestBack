@@ -20,7 +20,7 @@ class Agricultor(db.Model):
         onupdate=datetime.utcnow,
         nullable=True 
     )
-    # NOVO
+
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=True)
 
     propriedades: Mapped[List["Propriedade"]] = relationship(back_populates="agricultor", cascade="all, delete-orphan")
