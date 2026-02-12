@@ -149,7 +149,7 @@ class AgricultorLoadSchema(BaseLoadSchema):
     documentacao_validada = fields.Bool()
     comprovante_residencia = fields.Str()
     @validates('cpf')
-    def validate_cpf(self, value):
+    def validate_cpf(self, value,**kwargs):
         # Remove caracteres não numéricos
         cpf_limpo = re.sub(r'[^0-9]', '', value)
         if len(cpf_limpo) != 11:
