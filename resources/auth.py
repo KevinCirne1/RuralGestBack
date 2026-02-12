@@ -30,9 +30,6 @@ class LoginResource(Resource):
         # IMPORTANTE: Usamos o método do próprio model, que usa o Bcrypt correto
         if utilizador and utilizador.verificar_senha(senha):
             
-        # Verifica se o usuário existe E se a senha bate
-        # IMPORTANTE: Usamos o método do próprio model, que usa o Bcrypt correto
-        if utilizador and utilizador.verificar_senha(senha):
             
             # Gera o JSON do usuário
             response = usuario_schema_detalhado.dump(utilizador)
