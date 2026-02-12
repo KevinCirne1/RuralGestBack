@@ -44,7 +44,7 @@ class LoginResource(Resource):
         
         return {"message": "Credenciais inválidas"}, 401
         
-        return {"message": "Credenciais inválidas"}, 401
+        
 
 class RegistroAgricultorResource(Resource):
     def post(self):

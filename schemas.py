@@ -12,6 +12,7 @@ class VeiculoSimplesSchema(ma.Schema):
 class AgricultorSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     nome = fields.Str()
+    documentacao_validada = fields.Bool()
     comprovante_residencia = fields.Str() 
 
 class PropriedadeSimplesSchema(ma.Schema):
@@ -147,8 +148,8 @@ class AgricultorLoadSchema(BaseLoadSchema):
     cpf = fields.Str(required=True)
     comunidade = fields.Str(required=True)
     contato = fields.Str(required=True)
-    documentacao_validada = fields.Bool()
-    comprovante_residencia = fields.Str()
+    documentacao_validada = fields.Bool(allow_none=True)
+    comprovante_residencia = fields.Str(allow_none=True)
     @validates('cpf')
     def validate_cpf(self, value,**kwargs):
         # Remove caracteres não numéricos
