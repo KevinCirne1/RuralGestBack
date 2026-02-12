@@ -35,6 +35,12 @@ services:
       - "6379:6379"
     networks:
       - ruralgest-net
+    # Healthcheck: Garante que o Redis está respondendo PONG antes de outros usarem
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   # --- POSTGRESQL (Banco de Dados Principal) ---
   # ADICIONADO AGORA: O coração do seu sistema
@@ -52,6 +58,12 @@ services:
       - postgres_data:/var/lib/postgresql/data # <--- ISSO SALVA DADOS!
     networks:
       - ruralgest-net
+    # Healthcheck: Garante que o banco aceita conexões
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   jenkins_home:
