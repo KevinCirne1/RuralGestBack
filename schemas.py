@@ -1,5 +1,5 @@
 from helpers.database import ma
-from marshmallow import fields, EXCLUDE,validate, validates, ValidationError
+from marshmallow import fields, EXCLUDE,validate, validates, ValidationError,pre_load
 import re
 
 # --- Schemas de Visualização ---
