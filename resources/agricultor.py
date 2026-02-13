@@ -56,7 +56,7 @@ class AgricultorListResource(Resource):
                 nome=dados_validados.get('nome'),
                 login=login_usuario,
                 senha=senha_digitada, 
-                perfil="agricultor" # Define o perfil fixo para o front saber onde redirecionar
+                perfil="produtor" # Define o perfil fixo para o front saber onde redirecionar
             )
 
             # Adiciona e faz flush para gerar o ID do usuário imediatamente

@@ -16,9 +16,6 @@ class LoginResource(Resource):
         # Pega os dados brutos
         login = json_data.get('login')
         senha = json_data.get('senha')
-        # Pega os dados brutos
-        login = json_data.get('login')
-        senha = json_data.get('senha')
 
         if not login or not senha:
             return {"message": "Login e senha são obrigatórios"}, 400

@@ -24,7 +24,6 @@ class Usuario(db.Model):
         self.nome = nome
         self.login = login
         self.senha = bcrypt.generate_password_hash(senha).decode('utf-8')
-        self.senha = bcrypt.generate_password_hash(senha).decode('utf-8')
         self.perfil = perfil
         self.contato = contato  # <--- Adicionado aqui
 

@@ -2,9 +2,11 @@ from datetime import datetime
 import pytz
 from flask import request
 from flask_restful import Resource
-from models import Solicitacao, Notificacao, Usuario, Documento
+from models import Solicitacao, Notificacao, Usuario, Documento, Propriedade, Agricultor, Servico
 from helpers.database import db
 from marshmallow import ValidationError
+from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
 from schemas import (
     SolicitacaoDetalhadoSchema,
     SolicitacaoListaSchema,
