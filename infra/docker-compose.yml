@@ -50,7 +50,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: dev007  # Senha 
+      POSTGRES_PASSWORD: K123456/  # Senha 
       POSTGRES_DB: ruralgest
     ports:
       - "5433:5432"
