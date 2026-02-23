@@ -95,18 +95,7 @@ class SolicitacaoListResource(Resource):
             except Exception as e:
                 print(f"Erro ao registrar auditoria (CRIAR): {e}")
 
-            try:
-                # Associamos ao usuário do agricultor se possível, senão vai vazio
-                user_id = agri_obj.usuario_id if agri_obj else None 
-                registrar_log(
-                    acao="CRIAR",
-                    tabela="Solicitacao",
-                    registro_id=nova_solicitacao.id,
-                    usuario_id=user_id,
-                    detalhes=f"Solicitação criada para a propriedade ID {nova_solicitacao.propriedade_id}"
-                )
-            except Exception as e:
-                print(f"Erro ao registrar auditoria (CRIAR): {e}")
+            
 
             return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
