@@ -113,6 +113,15 @@ class VisitaTecnicaListaSchema(ma.Schema):
     tecnico_nome = fields.Function(lambda obj: obj.tecnico.nome if obj.tecnico else "N/A")
     solicitacao_id = fields.Int()
 
+class AuditoriaListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    acao = fields.Str()
+    tabela_afetada = fields.Str()
+    registro_id = fields.Int()
+    login = fields.Str()
+    detalhes = fields.Str()
+    data_hora = fields.DateTime(format='%d/%m/%Y %H:%M:%S')
+
 # --- Schemas de Detalhe ---
 
 class PropriedadeDetalhadoSchema(PropriedadeListaSchema):

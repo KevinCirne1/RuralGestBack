@@ -76,7 +76,7 @@ class RegistroAgricultorResource(Resource):
                 nome=json_data.get('nome'),
                 login=login_str,
                 senha=senha_str, # Passa a senha normal
-                perfil='agricultor' # Padronizado como 'agricultor' para bater com o front
+                perfil='produtor' # Padronizado como 'agricultor' para bater com o front
             )
             
             db.session.add(novo_usuario)

@@ -4,6 +4,7 @@ from flask import request
 from flask_restful import Resource
 from models import Solicitacao, Notificacao, Usuario, Documento, Propriedade, Agricultor, Servico
 from helpers.database import db
+from helpers.auditoria.auditoria import registrar_log
 from marshmallow import ValidationError
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
@@ -102,6 +103,19 @@ class SolicitacaoListResource(Resource):
                 db.session.rollback()
                 print(f"Erro Notificação Admin: {e}")
 
+            try:
+                # Associamos ao usuário do agricultor se possível, senão vai vazio
+                user_id = agri_obj.usuario_id if agri_obj else None 
+                registrar_log(
+                    acao="CRIAR",
+                    tabela="Solicitacao",
+                    registro_id=nova_solicitacao.id,
+                    usuario_id=user_id,
+                    detalhes=f"Solicitação criada para a propriedade ID {nova_solicitacao.propriedade_id}"
+                )
+            except Exception as e:
+                print(f"Erro ao registrar auditoria (CRIAR): {e}")
+
             return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
         except ValidationError as err:
@@ -158,6 +172,26 @@ class SolicitacaoResource(Resource):
                     print(f"Erro Notificação Produtor: {e}")
 
             db.session.commit()
+
+            try:
+                # Determina o texto dos detalhes baseado na alteração
+                detalhes_audit = "Solicitação atualizada."
+                if solicitacao.status != status_anterior:
+                    detalhes_audit = f"Status alterado de '{status_anterior}' para '{solicitacao.status}'."
+                
+                # Tenta pegar quem alterou (geralmente passado como operador_id no JSON do front)
+                operador_q_alterou = json_data.get('operador_id')
+
+                registrar_log(
+                    acao="EDITAR",
+                    tabela="Solicitacao",
+                    registro_id=solicitacao.id,
+                    usuario_id=operador_q_alterou,
+                    detalhes=detalhes_audit
+                )
+            except Exception as e:
+                print(f"Erro ao registrar auditoria (EDITAR): {e}")
+
             return solicitacao_schema_detalhado.dump(solicitacao), 200
             
         except ValidationError as err:
@@ -171,6 +205,22 @@ class SolicitacaoResource(Resource):
         if solicitacao.status.lower() != 'pendente':
             return {"message": "Ação Proibida: Pedido já processado."}, 400
         
+        # captura dados antes de excluir para usar na auditoria
+        id_temp = solicitacao.id
+        agri_temp = solicitacao.agricultor_id
+
         db.session.delete(solicitacao)
         db.session.commit()
+
+        try:
+            registrar_log(
+                acao="EXCLUIR",
+                tabela="Solicitacao",
+                registro_id=id_temp,
+                usuario_id=None, # Exclusões são feitas por quem está logado, aqui garantimos pelo menos o registo da ação
+                detalhes=f"Solicitação do agricultor ID {agri_temp} foi excluída permanentemente."
+            )
+        except Exception as e:
+            print(f"Erro ao registrar auditoria (EXCLUIR): {e}")
+
         return '', 204
