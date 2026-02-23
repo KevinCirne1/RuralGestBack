@@ -21,7 +21,7 @@ __pycache__/
 
 # Arquivo de Variáveis de Ambiente
 # CRÍTICO PARA SEGURANÇA! Contém senhas e chaves secretas. NUNCA envie este arquivo.
-.env
+*.env
 
 # Arquivos de Banco de Dados local (se usar SQLite para testes)
 *.sqlite3

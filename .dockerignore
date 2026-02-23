@@ -24,7 +24,3 @@ Ignorar Banco de dados local (Se tiver)
 
 *.sqlite3
 *.db
-
-Ignorar a pasta do Jenkins (se estiver na mesma raiz)
-
-jenkins_home/
