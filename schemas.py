@@ -31,7 +31,6 @@ class ServicoSimplesSchema(ma.Schema):
 
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
-    # CORRIGIDO: Formatação de data para o App entender
     data_solicitacao = fields.DateTime(format='%d/%m/%Y')
     data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
     status = fields.Str()

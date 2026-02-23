@@ -202,25 +202,33 @@ class SolicitacaoResource(Resource):
     def delete(self, solicitacao_id):
         """Remove solicitações apenas se ainda estiverem pendentes"""
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
+        
         if solicitacao.status.lower() != 'pendente':
             return {"message": "Ação Proibida: Pedido já processado."}, 400
-        
-        # captura dados antes de excluir para usar na auditoria
+
         id_temp = solicitacao.id
         agri_temp = solicitacao.agricultor_id
 
-        db.session.delete(solicitacao)
-        db.session.commit()
+        try:
+            # MAGIA! O SQLAlchemy apaga o pai, e o Postgres apaga os filhos automaticamente!
+            db.session.delete(solicitacao)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return {"message": f"Erro interno: {e}"}, 500
+            
+        # O fluxo continua para cá! (Removemos o return que estava aqui)
 
         try:
             registrar_log(
                 acao="EXCLUIR",
                 tabela="Solicitacao",
                 registro_id=id_temp,
-                usuario_id=None, # Exclusões são feitas por quem está logado, aqui garantimos pelo menos o registo da ação
+                usuario_id=None, # Exclusões são feitas por quem está logado
                 detalhes=f"Solicitação do agricultor ID {agri_temp} foi excluída permanentemente."
             )
         except Exception as e:
             print(f"Erro ao registrar auditoria (EXCLUIR): {e}")
 
+        # Agora sim, depois de apagar e auditar, devolvemos o código de sucesso 204 (No Content)
         return '', 204

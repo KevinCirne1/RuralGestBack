@@ -4,6 +4,8 @@ from reportlab.lib.units import cm
 from datetime import datetime
 import os
 
+#os.makedirs('documentos_gerados', exist_ok=True)
+
 def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     """
     Gera um ficheiro PDF físico para a Prefeitura de Pirpirituba.

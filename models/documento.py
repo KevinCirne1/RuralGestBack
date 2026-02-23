@@ -13,7 +13,7 @@ class Documento(db.Model):
     assinatura_digital: Mapped[str] = mapped_column(String(255), nullable=True) 
     data_geracao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     
-    solicitacao_id: Mapped[int] = mapped_column(ForeignKey("solicitacao.id"), nullable=False)
+    solicitacao_id: Mapped[int] = mapped_column(ForeignKey('solicitacao.id', ondelete='CASCADE'), nullable=False)
 
     solicitacao: Mapped["Solicitacao"] = relationship(backref="documentos")
 
