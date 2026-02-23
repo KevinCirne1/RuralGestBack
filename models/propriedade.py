@@ -15,8 +15,10 @@ class Propriedade(db.Model):
     coordenadas_geograficas: Mapped[str] = mapped_column(String(50))
     cultura_principal: Mapped[str] = mapped_column(String(100), nullable=True)
     quantidade_gado: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-
     
+    # --- NOVO CAMPO: Vínculo com a terra (Própria, Alugada, Cedida) ---
+    vinculo: Mapped[str] = mapped_column(String(50), nullable=True)
+
     agricultor_id: Mapped[int] = mapped_column(ForeignKey('agricultor.id'), nullable=False)
     
     agricultor: Mapped["Agricultor"] = relationship(back_populates="propriedades")

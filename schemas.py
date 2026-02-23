@@ -1,8 +1,8 @@
 from helpers.database import ma
-from marshmallow import fields, EXCLUDE,validate, validates, ValidationError,pre_load
+from marshmallow import fields, EXCLUDE, validate, validates, ValidationError, pre_load
 import re
 
-# --- Schemas de Visualização ---
+# --- Schemas de Visualização (Dumps) ---
 
 class VeiculoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -27,19 +27,21 @@ class ServicoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     nome_servico = fields.Str()
     tipo_veiculo = fields.Str()
+    requer_funcionario = fields.Bool()
 
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
-    data_solicitacao = fields.DateTime()
-    data_execucao = fields.DateTime() 
+    # CORRIGIDO: Formatação de data para o App entender
+    data_solicitacao = fields.DateTime(format='%d/%m/%Y')
+    data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
     status = fields.Str()
 
 class VisitaTecnicaSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
-    data_visita = fields.DateTime()
+    data_visita = fields.DateTime(format='%d/%m/%Y')
     observacoes = fields.Str()
 
-# --- Schemas de Lista ---
+# --- Schemas de Lista (Dumps Principais) ---
 
 class VeiculoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -52,7 +54,7 @@ class NotificacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     mensagem = fields.Str()
     lida = fields.Bool()
-    data_criacao = fields.DateTime()
+    data_criacao = fields.DateTime(format='%d/%m/%Y %H:%M')
 
 class AgricultorListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
@@ -62,12 +64,12 @@ class AgricultorListaSchema(ma.Schema):
     contato = fields.Str()
     documentacao_validada = fields.Bool()
     comprovante_residencia = fields.Str()
-    data_atualizacao_cadastro = fields.DateTime()
-     
+    data_atualizacao_cadastro = fields.DateTime(format='%d/%m/%Y')
 
 class PropriedadeListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     terreno = fields.Str()
+    vinculo = fields.Str()
     tipo_agricultura = fields.Str()
     area_total = fields.Float()
     area_exploravel = fields.Float()
@@ -89,17 +91,28 @@ class ServicoListaSchema(ma.Schema):
     descricao = fields.Str()
     capacidade_hectares = fields.Float()
     tipo_veiculo = fields.Str()
+    requer_funcionario = fields.Bool() 
 
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
-    data_solicitacao = fields.DateTime()
-    data_execucao = fields.DateTime() 
+    
+    # --- CORREÇÃO PRINCIPAL AQUI ---
+    # Adicionado format='%d/%m/%Y' para garantir que o React Native mostre a data correta
+    data_solicitacao = fields.DateTime(format='%d/%m/%Y')
+    data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
+    # -------------------------------
+
     operador_id = fields.Int()
     veiculo_id = fields.Int()   
     status = fields.Str()
     motivo_recusa = fields.Str()
-    observacoes = fields.Str()
-    observacoes = fields.Str()
+    
+    # Campos de Observação
+    observacao = fields.Str()  # Observação do Agricultor
+    observacao_funcionario = fields.Str()  # Relatório do Funcionário
+    observacoes = fields.Str()  # Histórico geral
+    
+    # Relacionamentos (Nested)
     agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
     servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
     propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
@@ -108,7 +121,7 @@ class SolicitacaoListaSchema(ma.Schema):
 
 class VisitaTecnicaListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
-    data_visita = fields.DateTime()
+    data_visita = fields.DateTime(format='%d/%m/%Y')
     observacoes = fields.Str()
     tecnico_nome = fields.Function(lambda obj: obj.tecnico.nome if obj.tecnico else "N/A")
     solicitacao_id = fields.Int()
@@ -140,7 +153,7 @@ class SolicitacaoDetalhadoSchema(SolicitacaoListaSchema):
 class VisitaTecnicaDetalhadoSchema(VisitaTecnicaListaSchema):
     pass
 
-# --- Schemas de Carga (Load) ---
+# --- Schemas de Carga (Load / Input de Dados) ---
 
 class BaseLoadSchema(ma.Schema):
     class Meta:
@@ -159,15 +172,19 @@ class AgricultorLoadSchema(BaseLoadSchema):
     contato = fields.Str(required=True)
     documentacao_validada = fields.Bool(allow_none=True)
     comprovante_residencia = fields.Str(allow_none=True)
+    
     @validates('cpf')
-    def validate_cpf(self, value,**kwargs):
-        # Remove caracteres não numéricos
+    def validate_cpf(self, value, **kwargs):
         cpf_limpo = re.sub(r'[^0-9]', '', value)
         if len(cpf_limpo) != 11:
             raise ValidationError('O CPF deve conter 11 dígitos.')
 
 class PropriedadeLoadSchema(BaseLoadSchema):
     terreno = fields.Str(required=True)
+    vinculo = fields.Str(
+        required=True, 
+        validate=validate.OneOf(["Própria", "Alugada", "Cedida"], error="Vínculo inválido")
+    )
     tipo_agricultura = fields.Str(required=True)
     area_total = fields.Float(required=True)
     area_exploravel = fields.Float(required=True)
@@ -188,6 +205,7 @@ class ServicoLoadSchema(BaseLoadSchema):
     descricao = fields.Str(allow_none=True)
     capacidade_hectares = fields.Float(allow_none=True)
     tipo_veiculo = fields.Str(allow_none=True)
+    requer_funcionario = fields.Bool(allow_none=True) 
 
 class SolicitacaoLoadSchema(BaseLoadSchema):
     agricultor_id = fields.Int(required=True)
@@ -197,12 +215,16 @@ class SolicitacaoLoadSchema(BaseLoadSchema):
     veiculo_id = fields.Int(allow_none=True)
     status = fields.Str()
     motivo_recusa = fields.Str(allow_none=True)
+    
+    # Campos editáveis
+    observacao = fields.Str(allow_none=True) 
+    observacao_funcionario = fields.Str(allow_none=True) 
     observacoes = fields.Str(allow_none=True) 
+    
     data_execucao = fields.DateTime(allow_none=True, load_default=None)
 
     @pre_load
     def process_input(self, data, **kwargs):
-        # Limpa strings vazias do formulário para evitar erros de tipo no Postgres
         for key, value in data.items():
             if value == "":
                 data[key] = None
@@ -221,7 +243,7 @@ class DocumentoListaSchema(ma.Schema):
     tipo_documento = fields.Str()
     arquivo_pdf = fields.Str()
     assinatura_digital = fields.Str()
-    data_geracao = fields.DateTime()
+    data_geracao = fields.DateTime(format='%d/%m/%Y')
     solicitacao_id = fields.Int()
 
 class DocumentoLoadSchema(ma.Schema):

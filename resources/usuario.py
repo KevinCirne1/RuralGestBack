@@ -1,6 +1,6 @@
 from flask import request
 from flask_restful import Resource
-from models import Usuario
+from models import Usuario, Agricultor # <--- ADICIONADO: Agricultor
 from helpers.database import db
 from marshmallow import ValidationError
 from schemas import (
@@ -28,7 +28,6 @@ class UsuarioListResource(Resource):
             dados_validados = usuario_schema_carga.load(json_data)
             
             # Cria o usuário passando todos os dados validados
-            # Como atualizamos o __init__ do Model, ele vai aceitar o contato aqui
             novo_usuario = Usuario(**dados_validados)
             
         except ValidationError as err:
@@ -43,7 +42,6 @@ class UsuarioResource(Resource):
         usuario = Usuario.query.get_or_404(usuario_id)
         return usuario_schema_detalhado.dump(usuario)
 
-    # --- MÉTODO DE EDIÇÃO (FALTAVA ISSO) ---
     def put(self, usuario_id):
         usuario = Usuario.query.get_or_404(usuario_id)
         json_data = request.get_json()
@@ -58,11 +56,32 @@ class UsuarioResource(Resource):
         if 'nome' in dados: usuario.nome = dados['nome']
         if 'login' in dados: usuario.login = dados['login']
         if 'perfil' in dados: usuario.perfil = dados['perfil']
-        if 'contato' in dados: usuario.contato = dados['contato'] # <--- Atualiza contato
+        if 'contato' in dados: usuario.contato = dados['contato']
         
-        # Só atualiza a senha se ela for enviada
+        # Só atualiza a senha se ela for enviada e não for vazia
         if 'senha' in dados and dados['senha']:
             usuario.senha = dados['senha']
+
+        # --- INÍCIO DA SINCRONIZAÇÃO COM AGRICULTOR ---
+        # Se o usuário tiver um login definido
+        if usuario.login:
+            # Remove caracteres não numéricos para verificar se é um CPF
+            login_limpo = ''.join(filter(str.isdigit, usuario.login))
+
+            # Se tiver 11 dígitos, assumimos que é um CPF
+            if len(login_limpo) == 11:
+                # Busca se existe um agricultor com esse CPF (formatado ou limpo)
+                agricultor_vinculado = Agricultor.query.filter(
+                    (Agricultor.cpf == login_limpo) | (Agricultor.cpf == usuario.login)
+                ).first()
+
+                if agricultor_vinculado:
+                    # Se achou, sincroniza os dados que foram alterados
+                    if 'contato' in dados:
+                        agricultor_vinculado.contato = dados['contato']
+                    if 'nome' in dados:
+                        agricultor_vinculado.nome = dados['nome']
+        # --- FIM DA SINCRONIZAÇÃO ---
 
         db.session.commit()
         return usuario_schema_detalhado.dump(usuario)
