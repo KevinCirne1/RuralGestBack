@@ -20,7 +20,7 @@ def registrar_log(acao, tabela, registro_id, usuario_id=None, detalhes=""):
             if user:
                 login_nome = user.login
 
-        # Chamando o __init__ do seu Model exatamente com os argumentos que ele pede
+       
         novo_log = Auditoria(
             acao=acao,
             tabela=tabela, 
@@ -30,7 +30,7 @@ def registrar_log(acao, tabela, registro_id, usuario_id=None, detalhes=""):
             detalhes=detalhes
         )
         
-        # Forçamos a data para Brasília (sobrescrevendo o datetime.now local do seu __init__)
+        
         novo_log.data_hora = obter_agora_brasil()
         
         db.session.add(novo_log)
