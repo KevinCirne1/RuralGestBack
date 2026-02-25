@@ -3,13 +3,16 @@ from flask_restful import Api
 from config import Config
 from helpers.database import db, ma, bcrypt
 from flask_caching import Cache 
+from flask_cors import CORS 
 import os
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
+
+CORS(app, supports_credentials=True, origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://10.112.136.42:3000"])
+
 # Configuração do Redis (Pega do .env ou usa padrão local)
-# Se estiver rodando no docker-compose, o host será 'redis'
 redis_host = os.getenv('REDIS_HOST', 'localhost')
 redis_port = os.getenv('REDIS_PORT', 6379)
 
@@ -22,7 +25,7 @@ cache_config = {
     "CACHE_REDIS_PORT": redis_port
 }
 
-# Inicializa extensões
+# Inicializa as restantes extensões
 db.init_app(app)
 ma.init_app(app)
 bcrypt.init_app(app)

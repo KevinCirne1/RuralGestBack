@@ -2,7 +2,7 @@ from flask import Flask, jsonify
 from flask_migrate import Migrate
 from helpers.database import db, ma, bcrypt
 from helpers.application import app, api
-from helpers.cors import cors
+
 
 # Importação dos Models
 from models import Agricultor, Propriedade, Usuario, Servico, Solicitacao, Veiculo, Notificacao, VisitaTecnica, Documento 
@@ -29,7 +29,7 @@ from resources.documento import DocumentoListResource, DocumentoResource, Docume
 # Inicialização das extensões
 #db.init_app(app)
 #ma.init_app(app)
-cors.init_app(app, supports_credentials=True)
+#cors.init_app(app, supports_credentials=True, origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://10.112.136.42:3000"])
 #bcrypt.init_app(app)
 migrate = Migrate(app, db)
 

@@ -4,6 +4,7 @@ from flask import request
 from flask_restful import Resource
 from models import Solicitacao, Notificacao, Usuario, Propriedade, Agricultor, Servico
 from helpers.database import db
+from helpers.auditoria.auditoria import registrar_log
 from marshmallow import ValidationError
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
@@ -81,6 +82,21 @@ class SolicitacaoListResource(Resource):
             except Exception as e:
                 print(f"Erro Notificação Post: {e}")
 
+            try:
+                # Associamos ao usuário do agricultor se possível, senão vai vazio
+                user_id = agri_obj.usuario_id if agri_obj else None 
+                registrar_log(
+                    acao="CRIAR",
+                    tabela="Solicitacao",
+                    registro_id=nova_solicitacao.id,
+                    usuario_id=user_id,
+                    detalhes=f"Solicitação criada para a propriedade ID {nova_solicitacao.propriedade_id}"
+                )
+            except Exception as e:
+                print(f"Erro ao registrar auditoria (CRIAR): {e}")
+
+            
+
             return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
         except ValidationError as err:
@@ -157,6 +173,26 @@ class SolicitacaoResource(Resource):
                 print(f"Erro ao processar notificações: {e}")
 
             db.session.commit()
+
+            try:
+                # Determina o texto dos detalhes baseado na alteração
+                detalhes_audit = "Solicitação atualizada."
+                if solicitacao.status != status_anterior:
+                    detalhes_audit = f"Status alterado de '{status_anterior}' para '{solicitacao.status}'."
+                
+                # Tenta pegar quem alterou (geralmente passado como operador_id no JSON do front)
+                operador_q_alterou = json_data.get('operador_id')
+
+                registrar_log(
+                    acao="EDITAR",
+                    tabela="Solicitacao",
+                    registro_id=solicitacao.id,
+                    usuario_id=operador_q_alterou,
+                    detalhes=detalhes_audit
+                )
+            except Exception as e:
+                print(f"Erro ao registrar auditoria (EDITAR): {e}")
+
             return solicitacao_schema_detalhado.dump(solicitacao), 200
             
         except Exception as e:
@@ -166,9 +202,33 @@ class SolicitacaoResource(Resource):
     def delete(self, solicitacao_id):
         """Remove solicitações apenas se ainda estiverem pendentes"""
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
+        
         if solicitacao.status.lower() != 'pendente':
             return {"message": "Ação Proibida: Pedido já processado."}, 400
-        
-        db.session.delete(solicitacao)
-        db.session.commit()
+
+        id_temp = solicitacao.id
+        agri_temp = solicitacao.agricultor_id
+
+        try:
+            # MAGIA! O SQLAlchemy apaga o pai, e o Postgres apaga os filhos automaticamente!
+            db.session.delete(solicitacao)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return {"message": f"Erro interno: {e}"}, 500
+            
+        # O fluxo continua para cá! (Removemos o return que estava aqui)
+
+        try:
+            registrar_log(
+                acao="EXCLUIR",
+                tabela="Solicitacao",
+                registro_id=id_temp,
+                usuario_id=None, # Exclusões são feitas por quem está logado
+                detalhes=f"Solicitação do agricultor ID {agri_temp} foi excluída permanentemente."
+            )
+        except Exception as e:
+            print(f"Erro ao registrar auditoria (EXCLUIR): {e}")
+
+        # Agora sim, depois de apagar e auditar, devolvemos o código de sucesso 204 (No Content)
         return '', 204

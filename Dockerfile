@@ -1,5 +1,5 @@
 # 1. Imagem Base: Python 3.9 leve (Slim)
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # 2. Define o diretório de trabalho dentro do container
 WORKDIR /app
@@ -28,6 +28,11 @@ COPY . .
 # 7. Expõe a porta 5000 (Padrão do Flask)
 EXPOSE 5000
 
+# Dar permissão de execução ao script de entrada
+RUN chmod +x ./docker-entrypoint.sh
+
+# Definir o script como o ponto de entrada
+ENTRYPOINT ["./docker-entrypoint.sh"]
+
 # 8. Comando para iniciar o sistema
-# Usamos o host 0.0.0.0 para ficar acessível de fora do container
-CMD ["flask", "run", "--host=0.0.0.0"]
+CMD ["uwsgi", "--ini", "uwsgi.ini"]

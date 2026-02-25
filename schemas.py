@@ -31,7 +31,6 @@ class ServicoSimplesSchema(ma.Schema):
 
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
-    # CORRIGIDO: Formatação de data para o App entender
     data_solicitacao = fields.DateTime(format='%d/%m/%Y')
     data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
     status = fields.Str()
@@ -126,7 +125,16 @@ class VisitaTecnicaListaSchema(ma.Schema):
     tecnico_nome = fields.Function(lambda obj: obj.tecnico.nome if obj.tecnico else "N/A")
     solicitacao_id = fields.Int()
 
-# --- Schemas de Detalhe (Herdam da Lista) ---
+class AuditoriaListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    acao = fields.Str()
+    tabela_afetada = fields.Str()
+    registro_id = fields.Int()
+    login = fields.Str()
+    detalhes = fields.Str()
+    data_hora = fields.DateTime(format='%d/%m/%Y %H:%M:%S')
+
+# --- Schemas de Detalhe ---
 
 class PropriedadeDetalhadoSchema(PropriedadeListaSchema):
     agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)

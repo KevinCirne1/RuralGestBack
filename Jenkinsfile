@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker { 
-            image 'python:3.9-slim' 
+            image 'python:3.11-slim' 
             // CONEXÃO DE REDE: O container de teste entra na rede da infra
             // para conseguir falar com o container 'ruralgest_redis'
             args '-u root --network ruralgest-net'
