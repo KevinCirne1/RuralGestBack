@@ -24,7 +24,6 @@ class LoginResource(Resource):
         utilizador = Usuario.query.filter_by(login=login).first()
 
         # Verifica se o usuário existe E se a senha bate
-        # IMPORTANTE: Usamos o método do próprio model, que usa o Bcrypt correto
         if utilizador and utilizador.verificar_senha(senha):
             
             
@@ -69,14 +68,12 @@ class RegistroAgricultorResource(Resource):
             if Agricultor.query.filter_by(cpf=cpf_str).first():
                 return {"message": "Este CPF já está registrado."}, 409
 
-            # --- CORREÇÃO CRÍTICA AQUI ---
-            # NÃO criptografamos a senha aqui. Passamos ela 'crua' (senha_str).
-            # O __init__ do Model Usuario vai fazer o hash automaticamente.
+            
             novo_usuario = Usuario(
                 nome=json_data.get('nome'),
                 login=login_str,
-                senha=senha_str, # Passa a senha normal
-                perfil='produtor' # Padronizado como 'agricultor' para bater com o front
+                senha=senha_str, 
+                perfil='produtor' 
             )
             
             db.session.add(novo_usuario)

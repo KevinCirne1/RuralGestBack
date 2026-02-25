@@ -14,7 +14,6 @@ class Agricultor(db.Model):
     comunidade: Mapped[str] = mapped_column(String(100), nullable=False)
     contato: Mapped[str] = mapped_column(String(20), nullable=True)
     documentacao_validada: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Aqui guardamos o número do ITR, CCIR ou Conta de Luz
     comprovante_residencia: Mapped[str] = mapped_column(String(50), nullable=True) 
     
     data_atualizacao_cadastro: Mapped[datetime] = mapped_column(

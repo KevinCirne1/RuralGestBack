@@ -13,10 +13,7 @@ class Usuario(db.Model):
     login: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     senha: Mapped[str] = mapped_column(String(255), nullable=False)
     perfil: Mapped[str] = mapped_column(String(50), nullable=False)
-    
-    # --- NOVO CAMPO ---
     contato: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    # ------------------
 
     solicitacoes_atendidas: Mapped[List["Solicitacao"]] = relationship(back_populates="operador")
 

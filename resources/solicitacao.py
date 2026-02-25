@@ -210,25 +210,25 @@ class SolicitacaoResource(Resource):
         agri_temp = solicitacao.agricultor_id
 
         try:
-            # MAGIA! O SQLAlchemy apaga o pai, e o Postgres apaga os filhos automaticamente!
+            
             db.session.delete(solicitacao)
             db.session.commit()
         except Exception as e:
             db.session.rollback()
             return {"message": f"Erro interno: {e}"}, 500
             
-        # O fluxo continua para cá! (Removemos o return que estava aqui)
+        
 
         try:
             registrar_log(
                 acao="EXCLUIR",
                 tabela="Solicitacao",
                 registro_id=id_temp,
-                usuario_id=None, # Exclusões são feitas por quem está logado
+                usuario_id=None, 
                 detalhes=f"Solicitação do agricultor ID {agri_temp} foi excluída permanentemente."
             )
         except Exception as e:
             print(f"Erro ao registrar auditoria (EXCLUIR): {e}")
 
-        # Agora sim, depois de apagar e auditar, devolvemos o código de sucesso 204 (No Content)
+        
         return '', 204

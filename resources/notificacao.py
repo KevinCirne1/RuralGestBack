@@ -3,7 +3,7 @@ from models import Notificacao
 from helpers.database import db
 from schemas import NotificacaoListaSchema
 
-# Inicializa o schema para listar várias notificações
+# Inicializa o schema 
 notificacao_schema = NotificacaoListaSchema(many=True)
 
 # Configura o leitor de parâmetros (usado tanto no GET quanto no LER TUDO)

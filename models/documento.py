@@ -8,7 +8,7 @@ class Documento(db.Model):
     __tablename__ = 'documento'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    tipo_documento: Mapped[str] = mapped_column(String(50), nullable=False) # Ex: "Ordem de Serviço", "Relatório Final"
+    tipo_documento: Mapped[str] = mapped_column(String(50), nullable=False) 
     arquivo_pdf: Mapped[str] = mapped_column(String(255), nullable=True) 
     assinatura_digital: Mapped[str] = mapped_column(String(255), nullable=True) 
     data_geracao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

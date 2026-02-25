@@ -10,15 +10,14 @@ class Auditoria(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     data_hora: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     
-    # Quem fez a ação? (Pode ser Null se for uma ação do sistema)
+    
     usuario_id: Mapped[int] = mapped_column(ForeignKey('usuario.id'), nullable=True)
-    login_usuario: Mapped[str] = mapped_column(String(100), nullable=True) # Guardamos o nome caso o usuário seja deletado depois
+    login_usuario: Mapped[str] = mapped_column(String(100), nullable=True) 
     
-    acao: Mapped[str] = mapped_column(String(50), nullable=False) # Ex: "CRIAR", "EXCLUIR", "VALIDAR"
-    tabela_afetada: Mapped[str] = mapped_column(String(50), nullable=False) # Ex: "Solicitacao", "Agricultor"
-    registro_id: Mapped[int] = mapped_column(db.Integer, nullable=True) # O ID do item mexido
-    
-    detalhes: Mapped[str] = mapped_column(Text, nullable=True) # Ex: "Mudou status de Pendente para Aprovada"
+    acao: Mapped[str] = mapped_column(String(50), nullable=False) 
+    tabela_afetada: Mapped[str] = mapped_column(String(50), nullable=False)
+    registro_id: Mapped[int] = mapped_column(db.Integer, nullable=True)
+    detalhes: Mapped[str] = mapped_column(Text, nullable=True) 
 
     usuario: Mapped["Usuario"] = relationship("Usuario")
 

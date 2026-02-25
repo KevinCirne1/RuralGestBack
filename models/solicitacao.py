@@ -12,16 +12,8 @@ class Solicitacao(db.Model):
     data_execucao: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default='Pendente')
     motivo_recusa: Mapped[str] = mapped_column(String(255), nullable=True)
-    
-    # Campo genérico (pode ser usado para histórico geral)
     observacoes: Mapped[str] = mapped_column(Text, nullable=True)
-
-    # --- CAMPOS ESPECÍFICOS DE COMUNICAÇÃO ---
-    
-    # 1. Observação do AGRICULTOR (O que ele detalha no pedido)
     observacao: Mapped[str] = mapped_column(Text, nullable=True)
-
-    # 2. Observação do FUNCIONÁRIO (Relatório de conclusão/andamento)
     observacao_funcionario: Mapped[str] = mapped_column(Text, nullable=True)
     
     # --- CHAVES ESTRANGEIRAS ---

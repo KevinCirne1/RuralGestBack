@@ -19,7 +19,7 @@ from resources.solicitacao import SolicitacaoResource, SolicitacaoListResource
 from resources.auth import LoginResource, RegistroAgricultorResource 
 from resources.veiculo import VeiculoResource, VeiculoListResource
 
-# ADICIONADO: NotificacaoLerTudoResource na importação
+
 from resources.notificacao import NotificacaoListResource, NotificacaoLerResource, NotificacaoLerTudoResource
 
 from resources.visita_tecnica import VisitaListResource, VisitaResource
@@ -76,10 +76,9 @@ api.add_resource(DashboardGraficosResource, '/dashboard/graficos')
 api.add_resource(DocumentoListResource, '/documentos')
 api.add_resource(DocumentoResource, '/documentos/<int:documento_id>')
 
-# Notificações (CORRIGIDO E ATUALIZADO)
+# Notificações 
 api.add_resource(NotificacaoListResource, '/notificacoes')
 api.add_resource(NotificacaoLerResource, '/notificacoes/<int:notificacao_id>')
-# ADICIONADO: Nova rota para marcar todas como lidas de uma vez
 api.add_resource(NotificacaoLerTudoResource, '/notificacoes/ler-tudo')
 
 # ROTA DE DOWNLOAD 

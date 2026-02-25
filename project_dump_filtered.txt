@@ -1,0 +1,2185 @@
+# =============================================================================
+# FICHEIRO 1: .env
+# =============================================================================
+```python:.env:.env
+
+DATABASE_URL=postgresql://postgres:dev007@db:5432/ruralgest
+
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+SECRET_KEY=fh4iuhfiufvihrrtgotr
+```eof
+
+# =============================================================================
+# FICHEIRO 2: .gitignore
+# =============================================================================
+```python:.gitignore:.gitignore
+# ==============================================================================
+# 
+#
+
+# ==============================================================================
+
+# Arquivos de Ambiente Virtual
+# Impede o envio de todas as bibliotecas instaladas, que podem ocupar muito espaço.
+# Outros desenvolvedores devem instalar as dependências usando o requirements.txt.
+venv/
+env/
+.venv/
+.env/
+
+# Arquivos de Cache e Bytecode do Python
+# Gerados automaticamente pelo Python, não precisam ser versionados.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Arquivo de Variáveis de Ambiente
+# CRÍTICO PARA SEGURANÇA! Contém senhas e chaves secretas. NUNCA envie este arquivo.
+*.env
+Postgres.env
+
+# Arquivos de Banco de Dados local (se usar SQLite para testes)
+*.sqlite3
+*.db
+
+# Pastas de configuração de IDEs (Editor de Código)
+# Evita conflitos de configuração pessoal entre desenvolvedores.
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Arquivos de Sistema Operacional
+# Arquivos gerados por macOS, Windows e Linux que não são parte do projeto.
+.DS_Store
+Thumbs.db
+
+# Arquivos de logs
+# Logs são específicos do ambiente de execução e não devem ser versionados.
+*.log
+logs/
+
+# Arquivos de cobertura de testes
+# Gerados ao rodar testes para medir a cobertura de código.
+.coverage
+.coverage.*
+htmlcov/
+
+# Arquivos de build e distribuição do Python
+build/
+dist/
+*.egg-info/
+
+
+
+
+documentos_gerados/
+__pycache__/
+*.pdf
+
+
+migrations/
+```eof
+
+# =============================================================================
+# FICHEIRO 3: commands.py
+# =============================================================================
+```python:commands.py:commands.py
+import click
+from models.usuario import Usuario
+from models.veiculo import Veiculo
+from models.agricultor import Agricultor
+from helpers.database import db
+from sqlalchemy import text
+
+@click.command('seed_admin')
+def seed_admin():
+    """Cria o utilizador administrador inicial."""
+    try:
+        login = click.prompt('Digite o login para o administrador', type=str)
+        nome = click.prompt('Digite o nome do administrador', type=str)
+        senha = click.prompt('Digite a senha para o administrador', type=str, hide_input=True, confirmation_prompt=True)
+        
+        if Usuario.query.filter_by(login=login).first():
+            click.echo('Erro: O utilizador com este login já existe.')
+            return
+
+        # Cria o admin com perfil 'gestor'
+        admin = Usuario(nome=nome, login=login, senha=senha, perfil='gestor')
+        
+        db.session.add(admin)
+        db.session.commit()
+        click.echo(f'Administrador "{nome}" criado com sucesso!')
+
+    except Exception as e:
+        click.echo(f"Erro ao criar o administrador: {e}")
+
+@click.command('seed_agricultor')
+def seed_agricultor():
+    """Cria um agricultor completo (Usuário + Dados Pessoais) para testes."""
+    try:
+        # 1. Dados de Acesso (Usuario)
+        click.echo("\n--- Dados de Acesso ---")
+        login = click.prompt('Login (Email/CPF)', type=str)
+        senha = click.prompt('Senha', type=str, hide_input=True, confirmation_prompt=True)
+        
+        if Usuario.query.filter_by(login=login).first():
+            click.echo('Erro: Já existe um usuário com este login.')
+            return
+
+        # 2. Dados Pessoais (Agricultor)
+        click.echo("\n--- Dados Pessoais ---")
+        nome = click.prompt('Nome Completo', type=str)
+        cpf = click.prompt('CPF', type=str)
+        comunidade = click.prompt('Comunidade', type=str)
+        contato = click.prompt('Contato (Tel)', type=str, default="00 0000-0000")
+        # Pergunta se já quer validar agora (para facilitar testes)
+        validar_agora = click.confirm('Deseja validar a documentação agora (Simular Admin)?', default=True)
+        num_doc = None
+        if validar_agora:
+            num_doc = click.prompt('Número do Comprovante de Residência', type=str, default="CCIR-123456")
+
+        if Agricultor.query.filter_by(cpf=cpf).first():
+            click.echo('Erro: Já existe um agricultor com este CPF.')
+            return
+
+        # 3. Criação no Banco (Transação Única)
+        
+        # Passo A: Cria o Usuário
+        novo_usuario = Usuario(nome=nome, login=login, senha=senha, perfil='agricultor')
+        db.session.add(novo_usuario)
+        db.session.flush() # Gera o ID do usuário sem fechar a transação
+
+        # Passo B: Cria o Agricultor vinculado ao Usuário
+        novo_agricultor = Agricultor(
+            nome=nome,
+            cpf=cpf,
+            comunidade=comunidade,
+            contato=contato,
+            usuario_id=novo_usuario.id, # <--- O VÍNCULO MÁGICO
+            documentacao_validada=validar_agora, # Usa o que escolheu
+            comprovante_residencia=num_doc,
+            )
+        db.session.add(novo_agricultor)
+
+
+        # Passo C: Salva tudo
+        db.session.commit()
+        
+        click.echo(f'\nSUCESSO: Agricultor "{nome}" cadastrado!')
+        click.echo(f' -> ID Usuário: {novo_usuario.id}')
+        click.echo(f' -> ID Agricultor: {novo_agricultor.id}')
+
+    except Exception as e:
+        db.session.rollback()
+        click.echo(f"Erro ao criar o agricultor: {e}")
+
+@click.command('reset_db')
+def reset_db():
+    """Apaga todos os dados de todas as tabelas."""
+    if click.confirm('Tem a certeza que quer apagar TODOS os dados da base de dados? Esta ação é irreversível.'):
+        try:
+            # Apaga os dados em ordem de dependência para evitar erros de chave estrangeira
+            db.session.execute(text('TRUNCATE TABLE solicitacao, servico, usuario, propriedade, agricultor RESTART IDENTITY CASCADE;'))
+            db.session.commit()
+            click.echo('Todos os dados foram apagados e os contadores de ID reiniciados.')
+        except Exception as e:
+            db.session.rollback()
+            click.echo(f"Erro ao zerar a base de dados: {e}")
+
+@click.command('seed_veiculos')
+def seed_veiculos():
+    """Cadastra a frota inicial de veículos."""
+    frota = [
+        {"nome": "Caminhão Caçamba 01", "tipo": "Caminhão", "placa": "PM-0001"},
+        {"nome": "Retroescavadeira 01", "tipo": "Retroescavadeira", "placa": "PM-0002"},
+        {"nome": "Motoniveladora 01", "tipo": "Motoniveladora", "placa": "PM-0003"},
+        {"nome": "Trator com Grade", "tipo": "Trator", "placa": "PM-0005"},
+    ]
+    try:
+        count = 0
+        for v in frota:
+            if not Veiculo.query.filter_by(nome=v["nome"]).first():
+                novo = Veiculo(nome=v["nome"], tipo=v["tipo"], placa=v["placa"], status="DISPONIVEL")
+                db.session.add(novo)
+                count += 1
+        db.session.commit()
+        click.echo(f"Sucesso! {count} veículos adicionados.")
+    except Exception as e:
+        click.echo(f"Erro: {e}")
+```eof
+
+# =============================================================================
+# FICHEIRO 4: helpers/application/__init__.py
+# =============================================================================
+```python:__init__.py:helpers/application/__init__.py
+from flask import Flask
+from flask_restful import Api
+from config import Config
+from helpers.database import db, ma, bcrypt
+from flask_caching import Cache 
+from flask_cors import CORS 
+import os
+
+app = Flask(__name__)
+app.config.from_object(Config)
+
+
+CORS(app, supports_credentials=True, origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://10.112.136.42:3000"])
+
+# Configuração do Redis (Pega do .env ou usa padrão local)
+redis_host = os.getenv('REDIS_HOST', 'localhost')
+redis_port = os.getenv('REDIS_PORT', 6379)
+
+# Configura o Cache
+cache_config = {
+    "DEBUG": True,
+    "CACHE_TYPE": "RedisCache",
+    "CACHE_DEFAULT_TIMEOUT": 300, 
+    "CACHE_REDIS_HOST": redis_host,
+    "CACHE_REDIS_PORT": redis_port
+}
+
+# Inicializa as restantes extensões
+db.init_app(app)
+ma.init_app(app)
+bcrypt.init_app(app)
+cache = Cache(app, config=cache_config) 
+
+api = Api(app)
+```eof
+
+# =============================================================================
+# FICHEIRO 5: helpers/auditoria/auditoria.py
+# =============================================================================
+```python:auditoria.py:helpers/auditoria/auditoria.py
+from datetime import datetime
+import pytz
+from models.auditoria import Auditoria
+from models.usuario import Usuario
+from helpers.database import db
+
+def obter_agora_brasil():
+    """Retorna a data e hora atual no fuso de Brasília."""
+    fuso_brasil = pytz.timezone('America/Sao_Paulo')
+    return datetime.now(fuso_brasil).replace(tzinfo=None)
+
+def registrar_log(acao, tabela, registro_id, usuario_id=None, detalhes=""):
+    """
+    Função para salvar um log no banco com captura de nome e horário de Brasília.
+    """
+    try:
+        login_nome = "Sistema/Desconhecido"
+        if usuario_id:
+            user = Usuario.query.get(usuario_id)
+            if user:
+                login_nome = user.login
+
+        # Chamando o __init__ do seu Model exatamente com os argumentos que ele pede
+        novo_log = Auditoria(
+            acao=acao,
+            tabela=tabela, 
+            registro_id=registro_id,
+            usuario_id=usuario_id,
+            login=login_nome,     
+            detalhes=detalhes
+        )
+        
+        # Forçamos a data para Brasília (sobrescrevendo o datetime.now local do seu __init__)
+        novo_log.data_hora = obter_agora_brasil()
+        
+        db.session.add(novo_log)
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"\n[!] ERRO AO GRAVAR AUDITORIA: {str(e)}\n")
+```eof
+
+# =============================================================================
+# FICHEIRO 6: helpers/cors/__init__.py
+# =============================================================================
+```python:__init__.py:helpers/cors/__init__.py
+from flask_cors import CORS
+
+cors = CORS()
+```eof
+
+# =============================================================================
+# FICHEIRO 7: helpers/database/__init__.py
+# =============================================================================
+```python:__init__.py:helpers/database/__init__.py
+from flask_sqlalchemy import SQLAlchemy
+from flask_marshmallow import Marshmallow
+from sqlalchemy.orm import DeclarativeBase
+
+from flask_bcrypt import Bcrypt
+
+class Base(DeclarativeBase):
+  pass
+
+db = SQLAlchemy(model_class=Base)
+ma = Marshmallow()
+bcrypt = Bcrypt()
+```eof
+
+# =============================================================================
+# FICHEIRO 8: helpers/logging/__init__.py
+# =============================================================================
+```python:__init__.py:helpers/logging/__init__.py
+import logging
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+logger = logging.getLogger(__name__)
+```eof
+
+# =============================================================================
+# FICHEIRO 9: helpers/migrate/__init__.py
+# =============================================================================
+```python:__init__.py:helpers/migrate/__init__.py
+from flask_migrate import Migrate
+
+migrate = Migrate()
+```eof
+
+# =============================================================================
+# FICHEIRO 10: helpers/pdf/gerador_pdf.py
+# =============================================================================
+```python:gerador_pdf.py:helpers/pdf/gerador_pdf.py
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import cm
+from datetime import datetime
+import os
+
+#os.makedirs('documentos_gerados', exist_ok=True)
+
+def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
+    """
+    Gera um ficheiro PDF físico para a Prefeitura de Pirpirituba.
+    Diferencia Protocolo (Pendente) de Comprovante (Concluída).
+    """
+    output_folder = "documentos_gerados"
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        
+    caminho_completo = os.path.join(output_folder, nome_arquivo)
+    
+    c = canvas.Canvas(caminho_completo, pagesize=A4)
+    width, height = A4
+    
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(2*cm, height - 2*cm, "Prefeitura Municipal de Pirpirituba")
+    c.setFont("Helvetica", 12)
+    c.drawString(2*cm, height - 2.8*cm, "Secretaria de Agricultura - RuralGest")
+    
+    c.line(2*cm, height - 3.2*cm, 19*cm, height - 3.2*cm)
+    
+    c.setFont("Helvetica-Bold", 14)
+    status_upper = solicitacao.status.upper()
+    
+    if status_upper == "CONCLUÍDA":
+        titulo = "RELATÓRIO DE CONCLUSÃO DE SERVIÇO"
+        c.setFillColorRGB(0, 0.4, 0)
+    else:
+        titulo = "PROTOCOLO DE SOLICITAÇÃO"
+        c.setFillColorRGB(0, 0, 0)
+        
+    c.drawCentredString(width / 2, height - 5*cm, titulo)
+    
+    c.setFont("Helvetica", 12)
+    y = height - 7*cm
+    
+    def escrever_linha(label, valor, destaque=False):
+        nonlocal y
+        if destaque:
+            c.setFont("Helvetica-Bold", 12)
+        else:
+            c.setFont("Helvetica", 12)
+        c.drawString(2.5*cm, y, f"{label}: {valor}")
+        y -= 1*cm
+
+    escrever_linha("Protocolo Nº", str(solicitacao.id), destaque=True)
+    escrever_linha("Data da Solicitação", solicitacao.data_solicitacao.strftime("%d/%m/%Y"))
+    escrever_linha("Agricultor", solicitacao.agricultor.nome)
+    escrever_linha("CPF", solicitacao.agricultor.cpf)
+    escrever_linha("Propriedade", solicitacao.propriedade.terreno)
+    escrever_linha("Serviço", solicitacao.servico.nome_servico)
+    
+    if status_upper == "CONCLUÍDA":
+        y -= 0.5*cm
+        c.line(2.5*cm, y + 0.5*cm, 18*cm, y + 0.5*cm)
+        data_exec = solicitacao.data_execucao.strftime("%d/%m/%Y") if solicitacao.data_execucao else "N/A"
+        escrever_linha("Executado em", data_exec, destaque=True)
+        escrever_linha("Equipamento", solicitacao.veiculo.nome if solicitacao.veiculo else "N/A")
+        
+        y -= 1*cm
+        c.setFont("Helvetica-Oblique", 11)
+        c.drawString(2.5*cm, y, "O serviço foi atestado como concluído pelo técnico da secretaria.")
+    else:
+        escrever_linha("Status Atual", solicitacao.status, destaque=True)
+
+    y -= 4*cm
+    c.line(5*cm, y, 16*cm, y)
+    c.drawCentredString(width / 2, y - 0.5*cm, "Assinatura do Agricultor")
+    
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawString(2*cm, 2*cm, "Documento gerado pelo sistema RuralGest.")
+    c.drawString(2*cm, 1.5*cm, f"Emissão: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    
+    c.save()
+    return caminho_completo
+```eof
+
+# =============================================================================
+# FICHEIRO 11: models/__init__.py
+# =============================================================================
+```python:__init__.py:models/__init__.py
+from .agricultor import Agricultor
+from .propriedade import Propriedade
+from .usuario import Usuario
+from .servico import Servico
+from .solicitacao import Solicitacao
+from .veiculo import Veiculo
+from .notificacao import Notificacao
+from .visita_tecnica import VisitaTecnica
+from .documento import Documento
+from .auditoria import Auditoria
+```eof
+
+# =============================================================================
+# FICHEIRO 12: models/agricultor.py
+# =============================================================================
+```python:agricultor.py:models/agricultor.py
+from __future__ import annotations
+from typing import List
+from datetime import datetime
+from sqlalchemy import String, DateTime, func, ForeignKey,Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db
+
+class Agricultor(db.Model):
+    __tablename__ = 'agricultor'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(150), nullable=False)
+    cpf: Mapped[str] = mapped_column(String(20), unique=True, nullable=True)
+    comunidade: Mapped[str] = mapped_column(String(100), nullable=False)
+    contato: Mapped[str] = mapped_column(String(20), nullable=True)
+    documentacao_validada: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Aqui guardamos o número do ITR, CCIR ou Conta de Luz
+    comprovante_residencia: Mapped[str] = mapped_column(String(50), nullable=True) 
+    
+    data_atualizacao_cadastro: Mapped[datetime] = mapped_column(
+        DateTime, 
+        default=datetime.utcnow, 
+        onupdate=datetime.utcnow,
+        nullable=True 
+    )
+
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=True)
+
+    propriedades: Mapped[List["Propriedade"]] = relationship(back_populates="agricultor", cascade="all, delete-orphan")
+    solicitacoes: Mapped[List["Solicitacao"]] = relationship(back_populates="agricultor", cascade="all, delete-orphan")
+```eof
+
+# =============================================================================
+# FICHEIRO 13: models/auditoria.py
+# =============================================================================
+```python:auditoria.py:models/auditoria.py
+from __future__ import annotations
+from datetime import datetime
+from sqlalchemy import String, DateTime, ForeignKey, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db
+
+class Auditoria(db.Model):
+    __tablename__ = 'auditoria'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    data_hora: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    
+    # Quem fez a ação? (Pode ser Null se for uma ação do sistema)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey('usuario.id'), nullable=True)
+    login_usuario: Mapped[str] = mapped_column(String(100), nullable=True) # Guardamos o nome caso o usuário seja deletado depois
+    
+    acao: Mapped[str] = mapped_column(String(50), nullable=False) # Ex: "CRIAR", "EXCLUIR", "VALIDAR"
+    tabela_afetada: Mapped[str] = mapped_column(String(50), nullable=False) # Ex: "Solicitacao", "Agricultor"
+    registro_id: Mapped[int] = mapped_column(db.Integer, nullable=True) # O ID do item mexido
+    
+    detalhes: Mapped[str] = mapped_column(Text, nullable=True) # Ex: "Mudou status de Pendente para Aprovada"
+
+    usuario: Mapped["Usuario"] = relationship("Usuario")
+
+    def __init__(self, acao, tabela, registro_id, usuario_id=None, login=None, detalhes=None):
+        self.acao = acao
+        self.tabela_afetada = tabela
+        self.registro_id = registro_id
+        self.usuario_id = usuario_id
+        self.login_usuario = login
+        self.detalhes = detalhes
+        self.data_hora = datetime.now()
+```eof
+
+# =============================================================================
+# FICHEIRO 14: models/documento.py
+# =============================================================================
+```python:documento.py:models/documento.py
+from __future__ import annotations
+from datetime import datetime
+from sqlalchemy import String, DateTime, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db
+
+class Documento(db.Model):
+    __tablename__ = 'documento'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tipo_documento: Mapped[str] = mapped_column(String(50), nullable=False) # Ex: "Ordem de Serviço", "Relatório Final"
+    arquivo_pdf: Mapped[str] = mapped_column(String(255), nullable=True) 
+    assinatura_digital: Mapped[str] = mapped_column(String(255), nullable=True) 
+    data_geracao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    solicitacao_id: Mapped[int] = mapped_column(ForeignKey('solicitacao.id', ondelete='CASCADE'), nullable=False)
+
+    solicitacao: Mapped["Solicitacao"] = relationship(backref="documentos")
+
+    def __init__(self, solicitacao_id, tipo_documento):
+        self.solicitacao_id = solicitacao_id
+        self.tipo_documento = tipo_documento
+        # Simula uma assinatura digital única baseada na data e ID
+        import uuid
+        self.assinatura_digital = str(uuid.uuid4())
+        self.arquivo_pdf = f"doc_{solicitacao_id}_{int(datetime.utcnow().timestamp())}.pdf"
+```eof
+
+# =============================================================================
+# FICHEIRO 15: models/notificacao.py
+# =============================================================================
+```python:notificacao.py:models/notificacao.py
+from __future__ import annotations
+from datetime import datetime
+import pytz # Certifique-se de ter o pytz instalado
+from sqlalchemy import String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column
+from helpers.database import db 
+
+# Função para pegar a hora de Brasília limpa
+def hora_brasil():
+    fuso = pytz.timezone('America/Sao_Paulo')
+    return datetime.now(fuso).replace(tzinfo=None)
+
+class Notificacao(db.Model):
+    __tablename__ = 'notificacao'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey('usuario.id'), nullable=False)
+    mensagem: Mapped[str] = mapped_column(String(255), nullable=False)
+    lida: Mapped[bool] = mapped_column(Boolean, default=False)
+    # AJUSTE: Trocamos o utcnow pela nossa função de Brasília
+    data_criacao: Mapped[datetime] = mapped_column(DateTime, default=hora_brasil)
+
+    def __init__(self, usuario_id: int, mensagem: str):
+        self.usuario_id = usuario_id
+        self.mensagem = mensagem
+```eof
+
+# =============================================================================
+# FICHEIRO 16: models/propriedade.py
+# =============================================================================
+```python:propriedade.py:models/propriedade.py
+from __future__ import annotations
+from typing import List
+from sqlalchemy import String, Float, ForeignKey, Integer
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db
+
+class Propriedade(db.Model):
+    __tablename__ = 'propriedade'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    terreno: Mapped[str] = mapped_column(String(150), nullable=False)
+    tipo_agricultura: Mapped[str] = mapped_column(String(100))
+    area_total: Mapped[float] = mapped_column(Float)
+    area_exploravel: Mapped[float] = mapped_column(Float)
+    coordenadas_geograficas: Mapped[str] = mapped_column(String(50))
+    cultura_principal: Mapped[str] = mapped_column(String(100), nullable=True)
+    quantidade_gado: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    
+    # --- NOVO CAMPO: Vínculo com a terra (Própria, Alugada, Cedida) ---
+    vinculo: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    agricultor_id: Mapped[int] = mapped_column(ForeignKey('agricultor.id'), nullable=False)
+    
+    agricultor: Mapped["Agricultor"] = relationship(back_populates="propriedades")
+    solicitacoes: Mapped[List["Solicitacao"]] = relationship(back_populates="propriedade", cascade="all, delete-orphan")
+```eof
+
+# =============================================================================
+# FICHEIRO 17: models/servico.py
+# =============================================================================
+```python:servico.py:models/servico.py
+from __future__ import annotations
+from typing import List
+from sqlalchemy import String, Float, Boolean # <--- ADICIONEI Boolean AQUI
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db
+
+class Servico(db.Model):
+    __tablename__ = 'servico'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome_servico: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    descricao: Mapped[str] = mapped_column(String(255), nullable=True)
+    capacidade_hectares: Mapped[float] = mapped_column(Float, nullable=True)
+    tipo_veiculo: Mapped[str] = mapped_column(String(50), nullable=True)
+    
+    # NOVA COLUNA: Define se o serviço exige atribuição de funcionário
+    # default=True garante que os serviços antigos continuem exigindo funcionário até você mudar
+    requer_funcionario: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    solicitacoes: Mapped[List["Solicitacao"]] = relationship(back_populates="servico")
+```eof
+
+# =============================================================================
+# FICHEIRO 18: models/solicitacao.py
+# =============================================================================
+```python:solicitacao.py:models/solicitacao.py
+from __future__ import annotations
+from datetime import datetime
+from sqlalchemy import DateTime, String, ForeignKey, func, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db
+
+class Solicitacao(db.Model):
+    __tablename__ = 'solicitacao'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    data_solicitacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    data_execucao: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default='Pendente')
+    motivo_recusa: Mapped[str] = mapped_column(String(255), nullable=True)
+    
+    # Campo genérico (pode ser usado para histórico geral)
+    observacoes: Mapped[str] = mapped_column(Text, nullable=True)
+
+    # --- CAMPOS ESPECÍFICOS DE COMUNICAÇÃO ---
+    
+    # 1. Observação do AGRICULTOR (O que ele detalha no pedido)
+    observacao: Mapped[str] = mapped_column(Text, nullable=True)
+
+    # 2. Observação do FUNCIONÁRIO (Relatório de conclusão/andamento)
+    observacao_funcionario: Mapped[str] = mapped_column(Text, nullable=True)
+    
+    # --- CHAVES ESTRANGEIRAS ---
+    agricultor_id: Mapped[int] = mapped_column(ForeignKey('agricultor.id'), nullable=False)
+    propriedade_id: Mapped[int] = mapped_column(ForeignKey('propriedade.id'), nullable=False)
+    servico_id: Mapped[int] = mapped_column(ForeignKey('servico.id'), nullable=False)
+    operador_id: Mapped[int] = mapped_column(ForeignKey('usuario.id'), nullable=True)
+    veiculo_id: Mapped[int] = mapped_column(ForeignKey('veiculo.id'), nullable=True)
+
+    # --- RELACIONAMENTOS ---
+    agricultor: Mapped["Agricultor"] = relationship(back_populates="solicitacoes")
+    propriedade: Mapped["Propriedade"] = relationship(back_populates="solicitacoes")
+    servico: Mapped["Servico"] = relationship(back_populates="solicitacoes")
+    operador: Mapped["Usuario"] = relationship(back_populates="solicitacoes_atendidas")
+    veiculo: Mapped["Veiculo"] = relationship(backref="solicitacoes")
+```eof
+
+# =============================================================================
+# FICHEIRO 19: models/usuario.py
+# =============================================================================
+```python:usuario.py:models/usuario.py
+from __future__ import annotations
+from typing import List, Optional
+import bcrypt
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db, bcrypt
+
+class Usuario(db.Model):
+    __tablename__ = 'usuario'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(150), nullable=False)
+    login: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    senha: Mapped[str] = mapped_column(String(255), nullable=False)
+    perfil: Mapped[str] = mapped_column(String(50), nullable=False)
+    
+    # --- NOVO CAMPO ---
+    contato: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    # ------------------
+
+    solicitacoes_atendidas: Mapped[List["Solicitacao"]] = relationship(back_populates="operador")
+
+    def __init__(self, nome, login, senha, perfil='tecnico', contato=None):
+        self.nome = nome
+        self.login = login
+        self.senha = bcrypt.generate_password_hash(senha).decode('utf-8')
+        self.perfil = perfil
+        self.contato = contato  # <--- Adicionado aqui
+
+    def verificar_senha(self, senha_texto_plano):
+        """
+        Verifica se a senha em texto simples bate com o hash do banco.
+        Retorna True ou False.
+        """
+        return bcrypt.check_password_hash(self.senha, senha_texto_plano)
+```eof
+
+# =============================================================================
+# FICHEIRO 20: models/veiculo.py
+# =============================================================================
+```python:veiculo.py:models/veiculo.py
+from __future__ import annotations
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String
+from helpers.database import db
+
+class Veiculo(db.Model):
+    __tablename__ = 'veiculo'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(100), nullable=False) # Ex: Trator John Deere
+    placa: Mapped[str] = mapped_column(String(20), nullable=True) # Ex: KKK-9999
+    tipo: Mapped[str] = mapped_column(String(50), nullable=False) # Ex: Trator, Caminhão
+    status: Mapped[str] = mapped_column(String(20), default='DISPONIVEL', nullable=False) # DISPONIVEL, EM_USO, MANUTENCAO
+```eof
+
+# =============================================================================
+# FICHEIRO 21: models/visita_tecnica.py
+# =============================================================================
+```python:visita_tecnica.py:models/visita_tecnica.py
+from __future__ import annotations
+from datetime import datetime
+from sqlalchemy import DateTime, String, ForeignKey, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from helpers.database import db
+
+class VisitaTecnica(db.Model):
+    __tablename__ = 'visita_tecnica'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    data_visita: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    observacoes: Mapped[str] = mapped_column(Text, nullable=False)
+    
+    # Relacionamentos
+    # Uma visita está ligada a uma solicitação específica
+    solicitacao_id: Mapped[int] = mapped_column(ForeignKey("solicitacao.id"), nullable=False)
+    # E é realizada por um técnico (Usuario)
+    tecnico_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+
+    # Definimos os relacionamentos com backref para facilitar o acesso inverso
+    solicitacao: Mapped["Solicitacao"] = relationship(backref="visitas")
+    tecnico: Mapped["Usuario"] = relationship(backref="visitas_realizadas")
+```eof
+
+# =============================================================================
+# FICHEIRO 22: requirements.txt
+# =============================================================================
+```python:requirements.txt:requirements.txt
+aniso8601==9.0.1
+click==8.1.3
+Flask==3.1.1
+Flask-HTTPAuth==4.5.0
+Flask-RESTful==0.3.9
+itsdangerous==2.2.0
+Jinja2==3.1.2
+MarkupSafe>=2.1.1
+pytz==2021.3
+six==1.16.0
+Werkzeug==3.1.0
+SQLAlchemy==2.0.42
+flask-cors==6.0.1
+marshmallow==4.0.0
+Flask-Migrate==3.1.0
+Flask-Smorest==0.46.1
+psycopg2-binary>=2.9.9
+python-dotenv==1.1.1
+Flask-JWT-Extended==4.7.1
+marshmallow-sqlalchemy==1.4.2
+Flask-Caching==2.3.1
+Flask-Bcrypt==1.0.1
+reportlab==4.0.4
+flask-marshmallow==1.3.0
+redis==7.1.0
+uWSGI==2.0.31
+
+```eof
+
+# =============================================================================
+# FICHEIRO 23: resources/agricultor.py
+# =============================================================================
+```python:agricultor.py:resources/agricultor.py
+from flask import request
+from flask_restful import Resource
+from models import Agricultor, Usuario 
+from helpers.database import db
+from marshmallow import ValidationError
+
+from schemas import (
+    AgricultorDetalhadoSchema, 
+    AgricultorListaSchema, 
+    AgricultorLoadSchema
+)
+
+# Instâncias dos Schemas
+agricultor_schema_detalhado = AgricultorDetalhadoSchema()
+agricultores_schema_lista = AgricultorListaSchema(many=True)
+agricultor_schema_carga = AgricultorLoadSchema()
+
+class AgricultorListResource(Resource):
+    def get(self):
+        agricultores = Agricultor.query.all()
+        return agricultores_schema_lista.dump(agricultores)
+
+    def post(self):
+        json_data = request.get_json()
+        
+        # 1. Valida os dados do Agricultor com Marshmallow
+        try:
+            dados_validados = agricultor_schema_carga.load(json_data)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+
+        try:
+            # 2. Prepara dados de Login
+            senha_digitada = json_data.get('senha')
+            # Tenta usar email, se não tiver, usa CPF (apenas números)
+            login_usuario = json_data.get('email')
+            if not login_usuario and 'cpf' in dados_validados:
+                login_usuario = ''.join(filter(str.isdigit, dados_validados['cpf']))
+
+            if not senha_digitada:
+                return {"message": "Senha é obrigatória para criar o acesso."}, 400
+            if not login_usuario:
+                return {"message": "CPF ou Email obrigatório para login."}, 400
+
+            # Verifica duplicidade no Usuário
+            if Usuario.query.filter_by(login=login_usuario).first():
+                return {"message": f"O login '{login_usuario}' já está em uso."}, 409
+
+            # 3. Cria o Usuário vinculado
+            novo_usuario = Usuario(
+                nome=dados_validados.get('nome'),
+                login=login_usuario,
+                senha=senha_digitada, 
+                perfil="produtor",
+                contato=dados_validados.get('contato') # Já sincroniza o contato na criação
+            )
+
+            db.session.add(novo_usuario)
+            db.session.flush() # Gera o ID do usuário sem commitar ainda
+
+            # 4. Cria o Agricultor vinculado
+            if hasattr(Agricultor, 'usuario_id'):
+                dados_validados['usuario_id'] = novo_usuario.id
+            
+            novo_agricultor = Agricultor(**dados_validados)
+            
+            db.session.add(novo_agricultor)
+            db.session.commit()
+            
+            return agricultor_schema_detalhado.dump(novo_agricultor), 201
+
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Erro interno ao cadastrar.", "error": str(e)}, 500
+
+class AgricultorResource(Resource):
+    def get(self, agricultor_id):
+        agricultor = Agricultor.query.get_or_404(agricultor_id)
+        return agricultor_schema_detalhado.dump(agricultor)
+
+    def put(self, agricultor_id):
+        agricultor = Agricultor.query.get_or_404(agricultor_id)
+        json_data = request.get_json()
+        
+        try:
+            # partial=True permite editar só alguns campos
+            dados_validados = agricultor_schema_carga.load(json_data, partial=True)
+            
+            # Atualiza os dados do Agricultor
+            for key, value in dados_validados.items():
+                setattr(agricultor, key, value)
+            
+            # --- SINCRONIZAÇÃO ROBUSTA (CORREÇÃO DE FORMATO) ---
+            # Essa lógica garante que encontra o usuário mesmo se o formato do CPF for diferente
+            if agricultor.cpf:
+                # 1. Gera versão LIMPA (só números: 12345678900)
+                cpf_limpo = ''.join(filter(str.isdigit, agricultor.cpf))
+                
+                # 2. Gera versão FORMATADA (123.456.789-00)
+                cpf_formatado = cpf_limpo
+                if len(cpf_limpo) == 11:
+                    cpf_formatado = f"{cpf_limpo[:3]}.{cpf_limpo[3:6]}.{cpf_limpo[6:9]}-{cpf_limpo[9:]}"
+
+                # 3. Busca o usuário por QUALQUER UMA das versões
+                usuario_vinculado = Usuario.query.filter(
+                    (Usuario.login == cpf_limpo) | (Usuario.login == cpf_formatado)
+                ).first()
+
+                # 4. Se achou, atualiza os dados dele
+                if usuario_vinculado:
+                    if 'contato' in dados_validados:
+                        usuario_vinculado.contato = dados_validados['contato']
+                        
+                    if 'nome' in dados_validados:
+                        usuario_vinculado.nome = dados_validados['nome']
+                    
+                    # Garante que o SQLAlchemy viu a mudança no usuário
+                    db.session.add(usuario_vinculado) 
+            # -----------------------------------------------------------
+
+            db.session.commit()
+            return agricultor_schema_detalhado.dump(agricultor)
+            
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Erro ao atualizar.", "error": str(e)}, 500
+
+    def delete(self, agricultor_id):
+        agricultor = Agricultor.query.get_or_404(agricultor_id)
+        
+        # Verifica se tem registros vinculados que impediriam a exclusão
+        tem_solicitacoes = agricultor.solicitacoes and len(agricultor.solicitacoes) > 0
+        tem_propriedades = agricultor.propriedades and len(agricultor.propriedades) > 0
+        
+        if tem_solicitacoes or tem_propriedades:
+             return {"message": "Não é possível excluir: existem propriedades ou solicitações vinculadas."}, 409
+
+        try:
+            # Tenta pegar o ID do usuário antes de deletar o agricultor
+            usuario_id_vinculado = getattr(agricultor, 'usuario_id', None)
+            usuario_vinculado = getattr(agricultor, 'usuario', None)
+
+            db.session.delete(agricultor)
+            
+            # Se tinha usuário vinculado, deleta também
+            if usuario_vinculado:
+                db.session.delete(usuario_vinculado)
+            elif usuario_id_vinculado:
+                user = Usuario.query.get(usuario_id_vinculado)
+                if user:
+                    db.session.delete(user)
+
+            db.session.commit()
+            return '', 204
+            
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Erro ao excluir.", "error": str(e)}, 500
+```eof
+
+# =============================================================================
+# FICHEIRO 24: resources/auditoria.py
+# =============================================================================
+```python:auditoria.py:resources/auditoria.py
+from flask_restful import Resource
+from models import Auditoria
+from schemas import AuditoriaListaSchema
+
+# Instancia o Schema a partir do ficheiro central schemas.py
+auditorias_schema = AuditoriaListaSchema(many=True)
+
+class AuditoriaListResource(Resource):
+    def get(self):
+        # Busca todos os logs ordenados do mais recente para o mais antigo
+        logs = Auditoria.query.order_by(Auditoria.data_hora.desc()).all()
+        return auditorias_schema.dump(logs), 200
+```eof
+
+# =============================================================================
+# FICHEIRO 25: resources/auth.py
+# =============================================================================
+```python:auth.py:resources/auth.py
+from flask import request
+from flask_restful import Resource
+from models.usuario import Usuario
+from models.agricultor import Agricultor
+from helpers.database import db
+from schemas import UsuarioDetalhadoSchema, AgricultorLoadSchema
+
+# Instância do schema para este resource
+usuario_schema_detalhado = UsuarioDetalhadoSchema()
+agricultor_schema_detalhado = AgricultorLoadSchema()
+
+class LoginResource(Resource):
+    def post(self):
+        json_data = request.get_json()
+        
+        # Pega os dados brutos
+        login = json_data.get('login')
+        senha = json_data.get('senha')
+
+        if not login or not senha:
+            return {"message": "Login e senha são obrigatórios"}, 400
+
+        # Busca no banco
+        utilizador = Usuario.query.filter_by(login=login).first()
+
+        # Verifica se o usuário existe E se a senha bate
+        # IMPORTANTE: Usamos o método do próprio model, que usa o Bcrypt correto
+        if utilizador and utilizador.verificar_senha(senha):
+            
+            
+            # Gera o JSON do usuário
+            response = usuario_schema_detalhado.dump(utilizador)
+            
+            # Busca dados extras se for produtor/agricultor
+            if utilizador.perfil in ['agricultor', 'produtor']:
+                agricultor = Agricultor.query.filter_by(usuario_id=utilizador.id).first()
+                if agricultor:
+                    response['agricultor_id'] = agricultor.id
+            
+            return response, 200
+        
+        return {"message": "Credenciais inválidas"}, 401
+        
+        
+
+class RegistroAgricultorResource(Resource):
+    def post(self):
+        json_data = request.get_json()
+        
+        # Validação de campos obrigatórios
+        required_fields = ['nome', 'login', 'senha', 'cpf', 'comunidade']
+        for field in required_fields:
+            if field not in json_data:
+                if field == 'login' and 'cpf' in json_data:
+                    json_data['login'] = json_data['cpf']
+                else:
+                    return {"message": f"O campo '{field}' é obrigatório."}, 400
+
+        try:
+            # Tratamento básico
+            login_str = str(json_data.get('login')).strip()
+            cpf_str = str(json_data.get('cpf')).strip()
+            senha_str = str(json_data.get('senha')).strip()
+
+            # Verificação de duplicidade
+            if Usuario.query.filter_by(login=login_str).first():
+                return {"message": "Este login já está em uso."}, 409
+            
+            if Agricultor.query.filter_by(cpf=cpf_str).first():
+                return {"message": "Este CPF já está registrado."}, 409
+
+            # --- CORREÇÃO CRÍTICA AQUI ---
+            # NÃO criptografamos a senha aqui. Passamos ela 'crua' (senha_str).
+            # O __init__ do Model Usuario vai fazer o hash automaticamente.
+            novo_usuario = Usuario(
+                nome=json_data.get('nome'),
+                login=login_str,
+                senha=senha_str, # Passa a senha normal
+                perfil='produtor' # Padronizado como 'agricultor' para bater com o front
+            )
+            
+            db.session.add(novo_usuario)
+            db.session.flush() # Gera o ID
+
+            # Criação do Agricultor vinculado
+            novo_agricultor = Agricultor(
+                nome=json_data.get('nome'), 
+                cpf=cpf_str,
+                comunidade=json_data.get('comunidade'),
+                contato=json_data.get('contato'),
+                usuario_id=novo_usuario.id 
+            )
+            
+            db.session.add(novo_agricultor)
+            db.session.commit()
+            
+            # Prepara resposta com ID correto
+            user_response = usuario_schema_detalhado.dump(novo_usuario)
+            user_response['agricultor_id'] = novo_agricultor.id
+
+            return {
+                "message": "Conta criada com sucesso!",
+                "usuario": user_response
+            }, 201
+
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Erro interno ao registrar.", "error": str(e)}, 500
+```eof
+
+# =============================================================================
+# FICHEIRO 26: resources/dashboard.py
+# =============================================================================
+```python:dashboard.py:resources/dashboard.py
+from flask_restful import Resource
+from sqlalchemy import func, or_
+from helpers.database import db
+from models import Agricultor, Solicitacao, Servico, Propriedade
+from helpers.application import cache
+
+class DashboardResumoResource(Resource):
+    @cache.cached(timeout=60)
+    def get(self):
+        """Devolve os contadores principais para os cartões e gráfico de status"""
+        
+        # 1. Totais Gerais
+        total_agricultores = db.session.query(func.count(Agricultor.id)).scalar()
+        total_solicitacoes = db.session.query(func.count(Solicitacao.id)).scalar()
+        total_hectares = db.session.query(func.sum(Propriedade.area_total)).scalar() or 0
+        
+        # Pega todos os status do banco 
+        all_status = db.session.query(Solicitacao.status).all()
+        status_list = [s[0].upper() for s in all_status] 
+        
+        # Agrupa nas 3 categorias do gráfico
+        pendentes = status_list.count('PENDENTE')
+        
+        # "Em Andamento" agora inclui APROVADA e EM_USO
+        em_andamento = (status_list.count('EM ANDAMENTO') + 
+                        status_list.count('APROVADA') + 
+                        status_list.count('EM_USO'))
+                        
+        concluidas = (status_list.count('CONCLUÍDA') + 
+                      status_list.count('CONCLUIDA') + 
+                      status_list.count('FINALIZADA'))
+
+        return {
+            "total_agricultores": total_agricultores,
+            "total_solicitacoes": total_solicitacoes,
+            "total_hectares_cadastrados": round(total_hectares, 2),
+            "solicitacoes_status": {
+                "pendentes": pendentes,
+                "em_andamento": em_andamento,
+                "concluidas": concluidas
+            }
+        }, 200
+
+class DashboardGraficosResource(Resource):
+    @cache.cached(timeout=300)
+    def get(self):
+        """Devolve dados formatados para o gráfico de barras (Serviços)"""
+        
+        # Serviços mais solicitados
+        servicos_populares = db.session.query(
+            Servico.nome_servico, func.count(Solicitacao.id)
+        ).join(Solicitacao).group_by(Servico.nome_servico).all()
+
+        dados_grafico_servicos = [
+            {"name": nome, "value": contagem} for nome, contagem in servicos_populares
+        ]
+
+        return {
+            "servicos_populares": dados_grafico_servicos,
+        }, 200
+```eof
+
+# =============================================================================
+# FICHEIRO 27: resources/documento.py
+# =============================================================================
+```python:documento.py:resources/documento.py
+from flask import request, send_file
+from flask_restful import Resource
+from models import Documento, Solicitacao
+from helpers.database import db
+from marshmallow import ValidationError
+from schemas import DocumentoListaSchema, DocumentoLoadSchema
+import os
+
+from helpers.pdf.gerador_pdf import gerar_pdf_solicitacao
+
+# --- Instâncias dos Schemas ---
+documento_schema_carga = DocumentoLoadSchema()
+documentos_schema_lista = DocumentoListaSchema(many=True)
+documento_schema_detalhado = DocumentoListaSchema() 
+
+class DocumentoListResource(Resource):
+    def get(self):
+        solicitacao_id = request.args.get('solicitacao_id')
+        if solicitacao_id:
+            documentos = Documento.query.filter_by(solicitacao_id=solicitacao_id).all()
+        else:
+            documentos = Documento.query.all()
+        return documentos_schema_lista.dump(documentos)
+
+    def post(self):
+        # Gera o PDF e cria o registro no banco
+        json_data = request.get_json()
+        try:
+            data = documento_schema_carga.load(json_data)
+            
+            # 1. Busca a solicitação (necessária para preencher o PDF)
+            solicitacao = Solicitacao.query.get_or_404(data['solicitacao_id'])
+            
+            # 2. Instancia o documento (o __init__ gera o nome do arquivo e hash)
+            novo_doc = Documento(
+                solicitacao_id=data['solicitacao_id'],
+                tipo_documento=data['tipo_documento']
+            )
+            
+            # 3. GERA O ARQUIVO FÍSICO NO DISCO 
+            # Passamos o objeto solicitacao, o tipo e o nome do arquivo gerado
+            gerar_pdf_solicitacao(solicitacao, data['tipo_documento'], novo_doc.arquivo_pdf)
+            
+            # 4. Salva no banco de dados
+            db.session.add(novo_doc)
+            db.session.commit()
+            
+            return documento_schema_detalhado.dump(novo_doc), 201
+            
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+
+class DocumentoResource(Resource):
+    def get(self, documento_id):
+        doc = Documento.query.get_or_404(documento_id)
+        return documento_schema_detalhado.dump(doc)
+    
+    def delete(self, documento_id):
+        doc = Documento.query.get_or_404(documento_id)
+        
+        # Remove ficheiro físico ao apagar da DB para não deixar lixo
+        pasta = os.path.abspath("documentos_gerados")
+        caminho = os.path.join(pasta, doc.arquivo_pdf)
+        
+        if os.path.exists(caminho):
+            try:
+                os.remove(caminho)
+            except Exception as e:
+                print(f"Erro ao apagar arquivo físico: {e}")
+            
+        db.session.delete(doc)
+        db.session.commit()
+        return '', 204
+
+# --- ENDPOINT PARA DOWNLOAD REAL ---
+class DocumentoDownloadResource(Resource):
+    def get(self, documento_id):
+        """
+        Envia o ficheiro PDF binário para o navegador.
+        Rota sugerida no app.py: api.add_resource(DocumentoDownloadResource, '/documentos/download/<int:documento_id>')
+        """
+        doc = Documento.query.get_or_404(documento_id)
+        
+        # Caminho absoluto da pasta de armazenamento
+        base_dir = os.path.abspath("documentos_gerados")
+        file_path = os.path.join(base_dir, doc.arquivo_pdf)
+        
+        if not os.path.exists(file_path):
+            return {"message": "O ficheiro PDF não foi encontrado no servidor físico."}, 404
+            
+        return send_file(
+            file_path,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=doc.arquivo_pdf
+        )
+```eof
+
+# =============================================================================
+# FICHEIRO 28: resources/notificacao.py
+# =============================================================================
+```python:notificacao.py:resources/notificacao.py
+from flask_restful import Resource, reqparse 
+from models import Notificacao
+from helpers.database import db
+from schemas import NotificacaoListaSchema
+
+# Inicializa o schema para listar várias notificações
+notificacao_schema = NotificacaoListaSchema(many=True)
+
+# Configura o leitor de parâmetros (usado tanto no GET quanto no LER TUDO)
+parser = reqparse.RequestParser()
+parser.add_argument('usuario_id', type=int, location='args', required=True)
+
+class NotificacaoListResource(Resource):
+    def get(self): 
+        """Lista as notificações de um usuário específico"""
+        args = parser.parse_args()
+        usuario_id = args.get('usuario_id')
+        
+        # Busca notificações ordenando por não lidas primeiro e depois por data
+        notificacoes = Notificacao.query.filter_by(usuario_id=usuario_id)\
+            .order_by(Notificacao.lida.asc(), Notificacao.data_criacao.desc())\
+            .all()
+        return notificacao_schema.dump(notificacoes), 200
+
+class NotificacaoLerResource(Resource):
+    def post(self, notificacao_id): 
+        """Marca uma notificação específica como lida no banco de dados"""
+        notificacao = Notificacao.query.get_or_404(notificacao_id)
+        
+        # Altera o status no PostgreSQL para persistir após o recarregamento
+        notificacao.lida = True
+        db.session.commit()
+        
+        return {'message': 'Notificação marcada como lida'}, 200
+
+class NotificacaoLerTudoResource(Resource):
+    def post(self):
+        """Marca TODAS as notificações de um usuário como lidas de uma só vez"""
+        args = parser.parse_args()
+        usuario_id = args.get('usuario_id')
+
+        # Atualização em massa para evitar erros de concorrência no banco
+        Notificacao.query.filter_by(usuario_id=usuario_id, lida=False).update({Notificacao.lida: True})
+        db.session.commit()
+
+        return {'message': 'Todas as notificações foram marcadas como lidas'}, 200
+```eof
+
+# =============================================================================
+# FICHEIRO 29: resources/propriedade.py
+# =============================================================================
+```python:propriedade.py:resources/propriedade.py
+from flask import request
+from flask_restful import Resource
+from models import Propriedade, Agricultor
+from helpers.database import db
+from marshmallow import ValidationError
+
+from schemas import (
+    PropriedadeDetalhadoSchema,
+    PropriedadeListaSchema,
+    PropriedadeLoadSchema
+)
+
+# --- Instâncias dos Schemas ---
+propriedade_schema_detalhado = PropriedadeDetalhadoSchema()
+propriedades_schema_lista = PropriedadeListaSchema(many=True)
+propriedade_schema_carga = PropriedadeLoadSchema()
+
+# --- Resources ---
+
+class AllPropriedadesListResource(Resource):
+    def get(self):
+        propriedades = Propriedade.query.all()
+        return propriedades_schema_lista.dump(propriedades)
+
+class PropriedadeListResource(Resource):
+    def get(self, agricultor_id):
+        Agricultor.query.get_or_404(agricultor_id)
+        propriedades = Propriedade.query.filter_by(agricultor_id=agricultor_id).all()
+        return propriedades_schema_lista.dump(propriedades)
+    
+    def post(self, agricultor_id):
+        Agricultor.query.get_or_404(agricultor_id)
+        json_data = request.get_json()
+        try:
+            dados_validados = propriedade_schema_carga.load(json_data)
+            nova_propriedade = Propriedade(agricultor_id=agricultor_id, **dados_validados)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
+        db.session.add(nova_propriedade)
+        db.session.commit()
+        return propriedade_schema_detalhado.dump(nova_propriedade), 201
+
+class PropriedadeResource(Resource):
+    def get(self, propriedade_id):
+        propriedade = Propriedade.query.get_or_404(propriedade_id)
+        return propriedade_schema_detalhado.dump(propriedade)
+
+    def put(self, propriedade_id):
+        propriedade = Propriedade.query.get_or_404(propriedade_id)
+        json_data = request.get_json()
+        try:
+            dados_validados = propriedade_schema_carga.load(json_data, partial=True)
+            for key, value in dados_validados.items():
+                setattr(propriedade, key, value)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
+        db.session.commit()
+        return propriedade_schema_detalhado.dump(propriedade)
+
+    def delete(self, propriedade_id):
+        propriedade = Propriedade.query.get_or_404(propriedade_id)
+        db.session.delete(propriedade)
+        db.session.commit()
+        return '', 204
+```eof
+
+# =============================================================================
+# FICHEIRO 30: resources/servico.py
+# =============================================================================
+```python:servico.py:resources/servico.py
+from flask import request
+from flask_restful import Resource
+from models import Servico
+from helpers.database import db
+from marshmallow import ValidationError
+
+from schemas import (
+    ServicoListaSchema,
+    ServicoLoadSchema
+)
+
+# --- Instâncias dos Schemas ---
+servicos_schema_lista = ServicoListaSchema(many=True)
+servico_schema_carga = ServicoLoadSchema()
+
+# --- Resources ---
+
+class ServicoListResource(Resource):
+    def get(self):
+        servicos = Servico.query.all()
+        return servicos_schema_lista.dump(servicos)
+
+    def post(self):
+        json_data = request.get_json()
+        try:
+            dados_validados = servico_schema_carga.load(json_data)
+            novo_servico = Servico(**dados_validados)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
+        db.session.add(novo_servico)
+        db.session.commit()
+        return ServicoListaSchema().dump(novo_servico), 201
+
+class ServicoResource(Resource):
+    def get(self, servico_id):
+        servico = Servico.query.get_or_404(servico_id)
+        return ServicoListaSchema().dump(servico)
+    
+    def put(self, servico_id):
+        servico = Servico.query.get_or_404(servico_id)
+        json_data = request.get_json()
+        try:
+            dados_validados = servico_schema_carga.load(json_data, partial=True)
+            for key, value in dados_validados.items():
+                setattr(servico, key, value)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
+        db.session.commit()
+        return ServicoListaSchema().dump(servico)
+
+    def delete(self, servico_id):
+        servico = Servico.query.get_or_404(servico_id)
+        db.session.delete(servico)
+        db.session.commit()
+        return '', 204
+```eof
+
+# =============================================================================
+# FICHEIRO 31: resources/solicitacao.py
+# =============================================================================
+```python:solicitacao.py:resources/solicitacao.py
+from datetime import datetime
+import pytz
+from flask import request
+from flask_restful import Resource
+from models import Solicitacao, Notificacao, Usuario, Propriedade, Agricultor, Servico
+from helpers.database import db
+from helpers.auditoria.auditoria import registrar_log
+from marshmallow import ValidationError
+from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
+from schemas import (
+    SolicitacaoDetalhadoSchema,
+    SolicitacaoListaSchema,
+    SolicitacaoLoadSchema
+)
+
+# Inicialização dos Schemas baseados no arquivo de definições
+solicitacao_schema_detalhado = SolicitacaoDetalhadoSchema()
+solicitacoes_schema_lista = SolicitacaoListaSchema(many=True)
+solicitacao_schema_carga = SolicitacaoLoadSchema()
+
+def obter_agora_brasil():
+    """Garante o registro do horário correto no banco de dados"""
+    fuso_brasil = pytz.timezone('America/Sao_Paulo')
+    return datetime.now(fuso_brasil).replace(tzinfo=None)
+
+class SolicitacaoListResource(Resource):
+    def get(self):
+        """Lista solicitações com filtros para o painel administrativo"""
+        operador_id = request.args.get('operador_id')
+        agricultor_id = request.args.get('agricultor_id') 
+        status = request.args.get('status')
+        
+        query = Solicitacao.query
+        if operador_id: query = query.filter_by(operador_id=operador_id)
+        if agricultor_id: query = query.filter_by(agricultor_id=agricultor_id)
+        if status: query = query.filter_by(status=status)
+            
+        return solicitacoes_schema_lista.dump(query.all()), 200
+
+    def post(self):
+        """Cria uma solicitação e notifica apenas a Gestão"""
+        json_data = request.get_json()
+        try:
+            data = solicitacao_schema_carga.load(json_data)
+            propriedade = Propriedade.query.get(data['propriedade_id'])
+            
+            if not propriedade:
+                return {"message": "A propriedade informada não existe."}, 404
+
+            # Validação de segurança: o agricultor deve ser o dono da terra
+            if int(propriedade.agricultor_id) != int(data['agricultor_id']):
+                return {"message": "Acesso negado: propriedade pertence a outro agricultor."}, 403
+            
+            # Evita pedidos duplicados em aberto
+            pedido_duplicado = Solicitacao.query.filter(
+                and_(
+                    Solicitacao.agricultor_id == data['agricultor_id'],
+                    Solicitacao.propriedade_id == data['propriedade_id'],
+                    Solicitacao.servico_id == data['servico_id'],
+                    Solicitacao.status.in_(['Pendente', 'Em Andamento', 'EM ANDAMENTO'])
+                )
+            ).first()
+
+            if pedido_duplicado:
+                return {"message": "Você já tem um pedido em aberto para este serviço."}, 409
+
+            nova_solicitacao = Solicitacao(data_solicitacao=obter_agora_brasil(), **data)
+            db.session.add(nova_solicitacao)
+            db.session.commit()
+            
+            # --- NOTIFICAÇÃO DE NOVO PEDIDO (Apenas Admins/Gestores) ---
+            try:
+                agri_obj = Agricultor.query.get(data['agricultor_id'])
+                serv_obj = Servico.query.get(data['servico_id'])
+                msg_admin = f"Nova solicitação de {serv_obj.nome_servico} feita por {agri_obj.nome}."
+
+                equipe_gestao = Usuario.query.filter(Usuario.perfil.in_(['admin', 'gestor', 'ADMIN', 'GESTOR'])).all()
+                for membro in equipe_gestao:
+                    db.session.add(Notificacao(usuario_id=membro.id, mensagem=msg_admin))
+                db.session.commit()
+            except Exception as e:
+                print(f"Erro Notificação Post: {e}")
+
+            try:
+                # Associamos ao usuário do agricultor se possível, senão vai vazio
+                user_id = agri_obj.usuario_id if agri_obj else None 
+                registrar_log(
+                    acao="CRIAR",
+                    tabela="Solicitacao",
+                    registro_id=nova_solicitacao.id,
+                    usuario_id=user_id,
+                    detalhes=f"Solicitação criada para a propriedade ID {nova_solicitacao.propriedade_id}"
+                )
+            except Exception as e:
+                print(f"Erro ao registrar auditoria (CRIAR): {e}")
+
+            
+
+            return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
+
+        except ValidationError as err:
+            return {"errors": err.messages}, 400
+
+class SolicitacaoResource(Resource):
+    def get(self, solicitacao_id):
+        solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
+        return solicitacao_schema_detalhado.dump(solicitacao), 200
+
+    def put(self, solicitacao_id):
+        """Atualiza a solicitação e gera notificações específicas por papel"""
+        solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
+        json_data = request.get_json()
+        
+        status_anterior = solicitacao.status
+        operador_anterior = solicitacao.operador_id
+        
+        try:
+            data = solicitacao_schema_carga.load(json_data, partial=True)
+            
+            # Bloqueia alteração de dados base após o início do processo
+            if solicitacao.status.lower() != 'pendente':
+                for campo in ['agricultor_id', 'propriedade_id', 'servico_id']:
+                    if campo in data and str(data[campo]) != str(getattr(solicitacao, campo)):
+                        return {"message": "Não é permitido alterar dados base de pedidos processados."}, 400
+
+            # Atualização dos campos
+            if 'operador_id' in json_data:
+                val = json_data.get('operador_id')
+                solicitacao.operador_id = int(val) if val and str(val).strip() != "" else None
+            
+            if 'veiculo_id' in json_data:
+                val = json_data.get('veiculo_id')
+                solicitacao.veiculo_id = int(val) if val and str(val).strip() != "" else None
+
+            for key in ['status', 'data_execucao', 'observacao', 'observacao_funcionario', 'observacoes']:
+                if key in data: setattr(solicitacao, key, data[key])
+
+            # --- LÓGICA DE NOTIFICAÇÕES PERSONALIZADAS ---
+            try:
+                serv_obj = Servico.query.get(solicitacao.servico_id)
+                nome_servico = (serv_obj.nome_servico if serv_obj else "serviço").lower()
+                local = solicitacao.propriedade.terreno if solicitacao.propriedade else "propriedade"
+
+                # 1. ATRIBUÍDO A UM FUNCIONÁRIO (Informa o local)
+                if solicitacao.operador_id and solicitacao.operador_id != operador_anterior:
+                    msg_func = f"Você foi escalado para o serviço de {nome_servico} na propriedade {local}."
+                    db.session.add(Notificacao(usuario_id=solicitacao.operador_id, mensagem=msg_func))
+
+                # 2. MUDANÇA DE STATUS (Filtra por papel)
+                if solicitacao.status != status_anterior:
+                    status_limpo = solicitacao.status.strip().upper()
+                    
+                    # PARA O AGRICULTOR (Usa usuario_id do modelo)
+                    if solicitacao.agricultor and solicitacao.agricultor.usuario_id:
+                        if status_limpo in ['CONCLUÍDA', 'CONCLUIDA']:
+                            msg_produtor = f"O serviço de {nome_servico} foi concluído com sucesso!"
+                        else:
+                            msg_produtor = f"A sua solicitação de {nome_servico} foi {solicitacao.status.lower()}."
+                        db.session.add(Notificacao(usuario_id=solicitacao.agricultor.usuario_id, mensagem=msg_produtor))
+
+                    # PARA O ADMIN/GESTOR (Informa QUEM concluiu)
+                    if status_limpo in ['CONCLUÍDA', 'CONCLUIDA']:
+                        nome_func = solicitacao.operador.nome if solicitacao.operador else "Um técnico"
+                        nome_agri = solicitacao.agricultor.nome if solicitacao.agricultor else "um agricultor"
+                        msg_admin = f"O técnico {nome_func} concluiu o serviço de {nome_servico} de {nome_agri}."
+                        
+                        equipe_gestao = Usuario.query.filter(Usuario.perfil.in_(['admin', 'gestor', 'ADMIN', 'GESTOR'])).all()
+                        for membro in equipe_gestao:
+                            db.session.add(Notificacao(usuario_id=membro.id, mensagem=msg_admin))
+
+            except Exception as e:
+                print(f"Erro ao processar notificações: {e}")
+
+            db.session.commit()
+
+            try:
+                # Determina o texto dos detalhes baseado na alteração
+                detalhes_audit = "Solicitação atualizada."
+                if solicitacao.status != status_anterior:
+                    detalhes_audit = f"Status alterado de '{status_anterior}' para '{solicitacao.status}'."
+                
+                # Tenta pegar quem alterou (geralmente passado como operador_id no JSON do front)
+                operador_q_alterou = json_data.get('operador_id')
+
+                registrar_log(
+                    acao="EDITAR",
+                    tabela="Solicitacao",
+                    registro_id=solicitacao.id,
+                    usuario_id=operador_q_alterou,
+                    detalhes=detalhes_audit
+                )
+            except Exception as e:
+                print(f"Erro ao registrar auditoria (EDITAR): {e}")
+
+            return solicitacao_schema_detalhado.dump(solicitacao), 200
+            
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Erro ao atualizar", "detalhe": str(e)}, 500
+
+    def delete(self, solicitacao_id):
+        """Remove solicitações apenas se ainda estiverem pendentes"""
+        solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
+        
+        if solicitacao.status.lower() != 'pendente':
+            return {"message": "Ação Proibida: Pedido já processado."}, 400
+
+        id_temp = solicitacao.id
+        agri_temp = solicitacao.agricultor_id
+
+        try:
+            # MAGIA! O SQLAlchemy apaga o pai, e o Postgres apaga os filhos automaticamente!
+            db.session.delete(solicitacao)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return {"message": f"Erro interno: {e}"}, 500
+            
+        # O fluxo continua para cá! (Removemos o return que estava aqui)
+
+        try:
+            registrar_log(
+                acao="EXCLUIR",
+                tabela="Solicitacao",
+                registro_id=id_temp,
+                usuario_id=None, # Exclusões são feitas por quem está logado
+                detalhes=f"Solicitação do agricultor ID {agri_temp} foi excluída permanentemente."
+            )
+        except Exception as e:
+            print(f"Erro ao registrar auditoria (EXCLUIR): {e}")
+
+        # Agora sim, depois de apagar e auditar, devolvemos o código de sucesso 204 (No Content)
+        return '', 204
+```eof
+
+# =============================================================================
+# FICHEIRO 32: resources/usuario.py
+# =============================================================================
+```python:usuario.py:resources/usuario.py
+from flask import request
+from flask_restful import Resource
+from models import Usuario, Agricultor # <--- ADICIONADO: Agricultor
+from helpers.database import db
+from marshmallow import ValidationError
+from schemas import (
+    UsuarioDetalhadoSchema, 
+    UsuarioListaSchema, 
+    UsuarioLoadSchema
+)
+
+# --- Instâncias dos Schemas ---
+usuario_schema_detalhado = UsuarioDetalhadoSchema()
+usuarios_schema_lista = UsuarioListaSchema(many=True)
+usuario_schema_carga = UsuarioLoadSchema()
+
+# --- Resources ---
+
+class UsuarioListResource(Resource):
+    def get(self):
+        usuarios = Usuario.query.all()
+        return usuarios_schema_lista.dump(usuarios)
+
+    def post(self):
+        json_data = request.get_json()
+        try:
+            # Carrega e valida os dados (incluindo contato)
+            dados_validados = usuario_schema_carga.load(json_data)
+            
+            # Cria o usuário passando todos os dados validados
+            novo_usuario = Usuario(**dados_validados)
+            
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+        
+        db.session.add(novo_usuario)
+        db.session.commit()
+        return usuario_schema_detalhado.dump(novo_usuario), 201
+
+class UsuarioResource(Resource):
+    def get(self, usuario_id):
+        usuario = Usuario.query.get_or_404(usuario_id)
+        return usuario_schema_detalhado.dump(usuario)
+
+    def put(self, usuario_id):
+        usuario = Usuario.query.get_or_404(usuario_id)
+        json_data = request.get_json()
+        
+        try:
+            # partial=True permite enviar apenas alguns campos para atualizar
+            dados = usuario_schema_carga.load(json_data, partial=True)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+
+        # Atualiza os campos se eles vierem na requisição
+        if 'nome' in dados: usuario.nome = dados['nome']
+        if 'login' in dados: usuario.login = dados['login']
+        if 'perfil' in dados: usuario.perfil = dados['perfil']
+        if 'contato' in dados: usuario.contato = dados['contato']
+        
+        # Só atualiza a senha se ela for enviada e não for vazia
+        if 'senha' in dados and dados['senha']:
+            usuario.senha = dados['senha']
+
+        # --- INÍCIO DA SINCRONIZAÇÃO COM AGRICULTOR ---
+        # Se o usuário tiver um login definido
+        if usuario.login:
+            # Remove caracteres não numéricos para verificar se é um CPF
+            login_limpo = ''.join(filter(str.isdigit, usuario.login))
+
+            # Se tiver 11 dígitos, assumimos que é um CPF
+            if len(login_limpo) == 11:
+                # Busca se existe um agricultor com esse CPF (formatado ou limpo)
+                agricultor_vinculado = Agricultor.query.filter(
+                    (Agricultor.cpf == login_limpo) | (Agricultor.cpf == usuario.login)
+                ).first()
+
+                if agricultor_vinculado:
+                    # Se achou, sincroniza os dados que foram alterados
+                    if 'contato' in dados:
+                        agricultor_vinculado.contato = dados['contato']
+                    if 'nome' in dados:
+                        agricultor_vinculado.nome = dados['nome']
+        # --- FIM DA SINCRONIZAÇÃO ---
+
+        db.session.commit()
+        return usuario_schema_detalhado.dump(usuario)
+
+    def delete(self, usuario_id):
+        usuario = Usuario.query.get_or_404(usuario_id)
+        db.session.delete(usuario)
+        db.session.commit()
+        return '', 204
+```eof
+
+# =============================================================================
+# FICHEIRO 33: resources/veiculo.py
+# =============================================================================
+```python:veiculo.py:resources/veiculo.py
+from flask import request
+from flask_restful import Resource
+from models import Veiculo
+from helpers.database import db
+from schemas import VeiculoListaSchema, VeiculoLoadSchema
+from marshmallow import ValidationError
+
+veiculo_schema = VeiculoListaSchema()
+veiculos_schema_lista = VeiculoListaSchema(many=True)
+veiculo_load_schema = VeiculoLoadSchema()
+
+class VeiculoListResource(Resource):
+    def get(self):
+        veiculos = Veiculo.query.all()
+        return veiculos_schema_lista.dump(veiculos)
+
+    def post(self):
+        json_data = request.get_json()
+        try:
+            data = veiculo_load_schema.load(json_data)
+            novo_veiculo = Veiculo(**data)
+            db.session.add(novo_veiculo)
+            db.session.commit()
+            return veiculo_schema.dump(novo_veiculo), 201
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+
+class VeiculoResource(Resource):
+    def get(self, veiculo_id):
+        veiculo = Veiculo.query.get_or_404(veiculo_id)
+        return veiculo_schema.dump(veiculo)
+
+    def put(self, veiculo_id):
+        veiculo = Veiculo.query.get_or_404(veiculo_id)
+        json_data = request.get_json()
+        try:
+            data = veiculo_load_schema.load(json_data, partial=True)
+            for key, value in data.items():
+                setattr(veiculo, key, value)
+            db.session.commit()
+            return veiculo_schema.dump(veiculo)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+
+    def delete(self, veiculo_id):
+        veiculo = Veiculo.query.get_or_404(veiculo_id)
+        db.session.delete(veiculo)
+        db.session.commit()
+        return '', 204
+```eof
+
+# =============================================================================
+# FICHEIRO 34: resources/visita_tecnica.py
+# =============================================================================
+```python:visita_tecnica.py:resources/visita_tecnica.py
+from flask import request
+from flask_restful import Resource
+from models import VisitaTecnica, Solicitacao
+from helpers.database import db
+from marshmallow import ValidationError
+
+from schemas import VisitaTecnicaLoadSchema, VisitaTecnicaDetalhadoSchema, VisitaTecnicaListaSchema
+
+
+visita_schema_carga = VisitaTecnicaLoadSchema()
+visita_schema_detalhado = VisitaTecnicaDetalhadoSchema()
+visitas_schema_lista = VisitaTecnicaListaSchema(many=True)
+
+class VisitaListResource(Resource):
+    def get(self):
+        # Lista todas as visitas 
+        solicitacao_id = request.args.get('solicitacao_id')
+        if solicitacao_id:
+            visitas = VisitaTecnica.query.filter_by(solicitacao_id=solicitacao_id).all()
+        else:
+            visitas = VisitaTecnica.query.all()
+        return visitas_schema_lista.dump(visitas)
+
+    def post(self):
+        json_data = request.get_json()
+        try:
+            data = visita_schema_carga.load(json_data)
+            nova_visita = VisitaTecnica(**data)
+            solicitacao = Solicitacao.query.get(data['solicitacao_id'])
+            if solicitacao and solicitacao.status == 'Pendente':
+                solicitacao.status = 'Em Andamento'
+                
+            db.session.add(nova_visita)
+            db.session.commit()
+            return visita_schema_detalhado.dump(nova_visita), 201
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+
+class VisitaResource(Resource):
+    def get(self, visita_id):
+        visita = VisitaTecnica.query.get_or_404(visita_id)
+        return visita_schema_detalhado.dump(visita)
+
+    def put(self, visita_id):
+        visita = VisitaTecnica.query.get_or_404(visita_id)
+        json_data = request.get_json()
+        try:
+            data = visita_schema_carga.load(json_data, partial=True)
+            for key, value in data.items():
+                setattr(visita, key, value)
+            db.session.commit()
+            return visita_schema_detalhado.dump(visita)
+        except ValidationError as err:
+            return {"messages": err.messages}, 400
+
+    def delete(self, visita_id):
+        visita = VisitaTecnica.query.get_or_404(visita_id)
+        db.session.delete(visita)
+        db.session.commit()
+        return '', 204
+```eof
+
+# =============================================================================
+# FICHEIRO 35: schemas.py
+# =============================================================================
+```python:schemas.py:schemas.py
+from helpers.database import ma
+from marshmallow import fields, EXCLUDE, validate, validates, ValidationError, pre_load
+import re
+
+# --- Schemas de Visualização (Dumps) ---
+
+class VeiculoSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+    status = fields.Str()
+
+class AgricultorSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+    documentacao_validada = fields.Bool()
+    comprovante_residencia = fields.Str() 
+
+class PropriedadeSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    terreno = fields.Str()
+
+class UsuarioSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+
+class ServicoSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome_servico = fields.Str()
+    tipo_veiculo = fields.Str()
+    requer_funcionario = fields.Bool()
+
+class SolicitacaoSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    data_solicitacao = fields.DateTime(format='%d/%m/%Y')
+    data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
+    status = fields.Str()
+
+class VisitaTecnicaSimplesSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    data_visita = fields.DateTime(format='%d/%m/%Y')
+    observacoes = fields.Str()
+
+# --- Schemas de Lista (Dumps Principais) ---
+
+class VeiculoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+    placa = fields.Str()
+    tipo = fields.Str()
+    status = fields.Str()
+
+class NotificacaoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    mensagem = fields.Str()
+    lida = fields.Bool()
+    data_criacao = fields.DateTime(format='%d/%m/%Y %H:%M')
+
+class AgricultorListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+    cpf = fields.Str()
+    comunidade = fields.Str()
+    contato = fields.Str()
+    documentacao_validada = fields.Bool()
+    comprovante_residencia = fields.Str()
+    data_atualizacao_cadastro = fields.DateTime(format='%d/%m/%Y')
+
+class PropriedadeListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    terreno = fields.Str()
+    vinculo = fields.Str()
+    tipo_agricultura = fields.Str()
+    area_total = fields.Float()
+    area_exploravel = fields.Float()
+    coordenadas_geograficas = fields.Str()
+    agricultor_id = fields.Int()
+    cultura_principal = fields.Str()
+    quantidade_gado = fields.Int()
+
+class UsuarioListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome = fields.Str()
+    login = fields.Str()
+    perfil = fields.Str()
+    contato = fields.Str() 
+
+class ServicoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    nome_servico = fields.Str()
+    descricao = fields.Str()
+    capacidade_hectares = fields.Float()
+    tipo_veiculo = fields.Str()
+    requer_funcionario = fields.Bool() 
+
+class SolicitacaoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    
+    # --- CORREÇÃO PRINCIPAL AQUI ---
+    # Adicionado format='%d/%m/%Y' para garantir que o React Native mostre a data correta
+    data_solicitacao = fields.DateTime(format='%d/%m/%Y')
+    data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
+    # -------------------------------
+
+    operador_id = fields.Int()
+    veiculo_id = fields.Int()   
+    status = fields.Str()
+    motivo_recusa = fields.Str()
+    
+    # Campos de Observação
+    observacao = fields.Str()  # Observação do Agricultor
+    observacao_funcionario = fields.Str()  # Relatório do Funcionário
+    observacoes = fields.Str()  # Histórico geral
+    
+    # Relacionamentos (Nested)
+    agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
+    servico = fields.Nested(ServicoSimplesSchema, dump_only=True)
+    propriedade = fields.Nested(PropriedadeSimplesSchema, dump_only=True)
+    veiculo = fields.Nested(VeiculoSimplesSchema, dump_only=True)
+    operador = fields.Nested(UsuarioSimplesSchema, dump_only=True)
+
+class VisitaTecnicaListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    data_visita = fields.DateTime(format='%d/%m/%Y')
+    observacoes = fields.Str()
+    tecnico_nome = fields.Function(lambda obj: obj.tecnico.nome if obj.tecnico else "N/A")
+    solicitacao_id = fields.Int()
+
+class AuditoriaListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    acao = fields.Str()
+    tabela_afetada = fields.Str()
+    registro_id = fields.Int()
+    login = fields.Str()
+    detalhes = fields.Str()
+    data_hora = fields.DateTime(format='%d/%m/%Y %H:%M:%S')
+
+# --- Schemas de Detalhe ---
+
+class PropriedadeDetalhadoSchema(PropriedadeListaSchema):
+    agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)
+
+class AgricultorDetalhadoSchema(AgricultorListaSchema):
+    propriedades = fields.Nested("PropriedadeSimplesSchema", many=True, dump_only=True)
+    solicitacoes = fields.Nested("SolicitacaoSimplesSchema", many=True, dump_only=True)
+
+class UsuarioDetalhadoSchema(UsuarioListaSchema):
+    solicitacoes_atendidas = fields.Nested("SolicitacaoSimplesSchema", many=True, dump_only=True)
+
+class SolicitacaoDetalhadoSchema(SolicitacaoListaSchema):
+    pass
+
+class VisitaTecnicaDetalhadoSchema(VisitaTecnicaListaSchema):
+    pass
+
+# --- Schemas de Carga (Load / Input de Dados) ---
+
+class BaseLoadSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+class VeiculoLoadSchema(BaseLoadSchema):
+    nome = fields.Str(required=True)
+    placa = fields.Str(allow_none=True)
+    tipo = fields.Str(required=True)
+    status = fields.Str(allow_none=True)
+
+class AgricultorLoadSchema(BaseLoadSchema):
+    nome = fields.Str(required=True)
+    cpf = fields.Str(required=True)
+    comunidade = fields.Str(required=True)
+    contato = fields.Str(required=True)
+    documentacao_validada = fields.Bool(allow_none=True)
+    comprovante_residencia = fields.Str(allow_none=True)
+    
+    @validates('cpf')
+    def validate_cpf(self, value, **kwargs):
+        cpf_limpo = re.sub(r'[^0-9]', '', value)
+        if len(cpf_limpo) != 11:
+            raise ValidationError('O CPF deve conter 11 dígitos.')
+
+class PropriedadeLoadSchema(BaseLoadSchema):
+    terreno = fields.Str(required=True)
+    vinculo = fields.Str(
+        required=True, 
+        validate=validate.OneOf(["Própria", "Alugada", "Cedida"], error="Vínculo inválido")
+    )
+    tipo_agricultura = fields.Str(required=True)
+    area_total = fields.Float(required=True)
+    area_exploravel = fields.Float(required=True)
+    coordenadas_geograficas = fields.Str(required=True)
+    agricultor_id = fields.Int()
+    cultura_principal = fields.Str(allow_none=True)
+    quantidade_gado = fields.Int(load_default=0)
+
+class UsuarioLoadSchema(BaseLoadSchema):
+    nome = fields.Str(required=True)
+    login = fields.Str(required=True)
+    senha = fields.Str(required=True, load_only=True)
+    perfil = fields.Str(required=True)
+    contato = fields.Str(allow_none=True)
+
+class ServicoLoadSchema(BaseLoadSchema):
+    nome_servico = fields.Str(required=True)
+    descricao = fields.Str(allow_none=True)
+    capacidade_hectares = fields.Float(allow_none=True)
+    tipo_veiculo = fields.Str(allow_none=True)
+    requer_funcionario = fields.Bool(allow_none=True) 
+
+class SolicitacaoLoadSchema(BaseLoadSchema):
+    agricultor_id = fields.Int(required=True)
+    propriedade_id = fields.Int(required=True)
+    servico_id = fields.Int(required=True)
+    operador_id = fields.Int(allow_none=True)
+    veiculo_id = fields.Int(allow_none=True)
+    status = fields.Str()
+    motivo_recusa = fields.Str(allow_none=True)
+    
+    # Campos editáveis
+    observacao = fields.Str(allow_none=True) 
+    observacao_funcionario = fields.Str(allow_none=True) 
+    observacoes = fields.Str(allow_none=True) 
+    
+    data_execucao = fields.DateTime(allow_none=True, load_default=None)
+
+    @pre_load
+    def process_input(self, data, **kwargs):
+        for key, value in data.items():
+            if value == "":
+                data[key] = None
+        return data
+
+class VisitaTecnicaLoadSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+    solicitacao_id = fields.Int(required=True)
+    tecnico_id = fields.Int(required=True)
+    data_visita = fields.DateTime(allow_none=True)
+    observacoes = fields.Str(required=True)
+
+class DocumentoListaSchema(ma.Schema):
+    id = fields.Int(dump_only=True)
+    tipo_documento = fields.Str()
+    arquivo_pdf = fields.Str()
+    assinatura_digital = fields.Str()
+    data_geracao = fields.DateTime(format='%d/%m/%Y')
+    solicitacao_id = fields.Int()
+
+class DocumentoLoadSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+    solicitacao_id = fields.Int(required=True)
+    tipo_documento = fields.Str(required=True)
+```eof
+

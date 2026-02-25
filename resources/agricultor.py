@@ -90,8 +90,7 @@ class AgricultorResource(Resource):
             for key, value in dados_validados.items():
                 setattr(agricultor, key, value)
             
-            # --- SINCRONIZAÇÃO ROBUSTA (CORREÇÃO DE FORMATO) ---
-            # Essa lógica garante que encontra o usuário mesmo se o formato do CPF for diferente
+           
             if agricultor.cpf:
                 # 1. Gera versão LIMPA (só números: 12345678900)
                 cpf_limpo = ''.join(filter(str.isdigit, agricultor.cpf))
@@ -116,7 +115,7 @@ class AgricultorResource(Resource):
                     
                     # Garante que o SQLAlchemy viu a mudança no usuário
                     db.session.add(usuario_vinculado) 
-            # -----------------------------------------------------------
+            
 
             db.session.commit()
             return agricultor_schema_detalhado.dump(agricultor)

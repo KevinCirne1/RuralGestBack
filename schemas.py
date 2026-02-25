@@ -95,8 +95,7 @@ class ServicoListaSchema(ma.Schema):
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     
-    # --- CORREÇÃO PRINCIPAL AQUI ---
-    # Adicionado format='%d/%m/%Y' para garantir que o React Native mostre a data correta
+    
     data_solicitacao = fields.DateTime(format='%d/%m/%Y')
     data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
     # -------------------------------
@@ -107,9 +106,9 @@ class SolicitacaoListaSchema(ma.Schema):
     motivo_recusa = fields.Str()
     
     # Campos de Observação
-    observacao = fields.Str()  # Observação do Agricultor
-    observacao_funcionario = fields.Str()  # Relatório do Funcionário
-    observacoes = fields.Str()  # Histórico geral
+    observacao = fields.Str()  
+    observacao_funcionario = fields.Str()  
+    observacoes = fields.Str()  
     
     # Relacionamentos (Nested)
     agricultor = fields.Nested(AgricultorSimplesSchema, dump_only=True)

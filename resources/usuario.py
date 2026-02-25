@@ -63,7 +63,7 @@ class UsuarioResource(Resource):
             usuario.senha = dados['senha']
 
         # --- INÍCIO DA SINCRONIZAÇÃO COM AGRICULTOR ---
-        # Se o usuário tiver um login definido
+        
         if usuario.login:
             # Remove caracteres não numéricos para verificar se é um CPF
             login_limpo = ''.join(filter(str.isdigit, usuario.login))
@@ -81,7 +81,7 @@ class UsuarioResource(Resource):
                         agricultor_vinculado.contato = dados['contato']
                     if 'nome' in dados:
                         agricultor_vinculado.nome = dados['nome']
-        # --- FIM DA SINCRONIZAÇÃO ---
+        
 
         db.session.commit()
         return usuario_schema_detalhado.dump(usuario)

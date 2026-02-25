@@ -31,14 +31,14 @@ class DocumentoListResource(Resource):
             # 1. Busca a solicitação (necessária para preencher o PDF)
             solicitacao = Solicitacao.query.get_or_404(data['solicitacao_id'])
             
-            # 2. Instancia o documento (o __init__ gera o nome do arquivo e hash)
+            # 2. Instancia o documento 
             novo_doc = Documento(
                 solicitacao_id=data['solicitacao_id'],
                 tipo_documento=data['tipo_documento']
             )
             
-            # 3. GERA O ARQUIVO FÍSICO NO DISCO 
-            # Passamos o objeto solicitacao, o tipo e o nome do arquivo gerado
+            # GERA O ARQUIVO FÍSICO NO DISCO 
+           
             gerar_pdf_solicitacao(solicitacao, data['tipo_documento'], novo_doc.arquivo_pdf)
             
             # 4. Salva no banco de dados
@@ -75,10 +75,7 @@ class DocumentoResource(Resource):
 # --- ENDPOINT PARA DOWNLOAD REAL ---
 class DocumentoDownloadResource(Resource):
     def get(self, documento_id):
-        """
-        Envia o ficheiro PDF binário para o navegador.
-        Rota sugerida no app.py: api.add_resource(DocumentoDownloadResource, '/documentos/download/<int:documento_id>')
-        """
+        
         doc = Documento.query.get_or_404(documento_id)
         
         # Caminho absoluto da pasta de armazenamento

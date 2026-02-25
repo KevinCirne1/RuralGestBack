@@ -17,7 +17,6 @@ class Notificacao(db.Model):
     usuario_id: Mapped[int] = mapped_column(ForeignKey('usuario.id'), nullable=False)
     mensagem: Mapped[str] = mapped_column(String(255), nullable=False)
     lida: Mapped[bool] = mapped_column(Boolean, default=False)
-    # AJUSTE: Trocamos o utcnow pela nossa função de Brasília
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=hora_brasil)
 
     def __init__(self, usuario_id: int, mensagem: str):

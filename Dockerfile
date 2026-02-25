@@ -1,4 +1,4 @@
-# 1. Imagem Base: Python 3.9 leve (Slim)
+# 1. Imagem Base: Python 3.11 leve (Slim)
 FROM python:3.11-slim
 
 # 2. Define o diretório de trabalho dentro do container
