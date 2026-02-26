@@ -7,15 +7,13 @@ from models import Solicitacao, Notificacao, Usuario, Propriedade, Agricultor, S
 from helpers.database import db
 from helpers.auditoria.auditoria import registrar_log
 from marshmallow import ValidationError
-from sqlalchemy import and_
-from sqlalchemy.exc import IntegrityError
 from schemas import (
     SolicitacaoDetalhadoSchema,
     SolicitacaoListaSchema,
     SolicitacaoLoadSchema
 )
 
-# Inicialização dos Schemas baseados no arquivo de definições
+# Inicialização dos Schemas
 solicitacao_schema_detalhado = SolicitacaoDetalhadoSchema()
 solicitacoes_schema_lista = SolicitacaoListaSchema(many=True)
 solicitacao_schema_carga = SolicitacaoLoadSchema()
@@ -53,24 +51,25 @@ class SolicitacaoListResource(Resource):
             if int(propriedade.agricultor_id) != int(data['agricultor_id']):
                 return {"message": "Acesso negado: propriedade pertence a outro agricultor."}, 403
             
-            # Evita pedidos duplicados em aberto
+            # --- BLOCO ANTI-DUPLICIDADE ---
             pedido_duplicado = Solicitacao.query.filter(
-                and_(
-                    Solicitacao.agricultor_id == data['agricultor_id'],
-                    Solicitacao.propriedade_id == data['propriedade_id'],
-                    Solicitacao.servico_id == data['servico_id'],
-                    Solicitacao.status.in_(['Pendente', 'Em Andamento', 'EM ANDAMENTO'])
-                )
+                Solicitacao.agricultor_id == data['agricultor_id'],
+                Solicitacao.propriedade_id == data['propriedade_id'],
+                Solicitacao.servico_id == data['servico_id'],
+                Solicitacao.status.in_(['PENDENTE', 'EM ANDAMENTO', 'Pendente', 'Em Andamento']) 
             ).first()
 
             if pedido_duplicado:
-                return {"message": "Você já tem um pedido em aberto para este serviço."}, 409
+                status_atual = pedido_duplicado.status.upper()
+                return {
+                    "message": f"Você já tem um pedido {status_atual} para este serviço. Aguarde a conclusão."
+                }, 409
 
             nova_solicitacao = Solicitacao(data_solicitacao=obter_agora_brasil(), **data)
             db.session.add(nova_solicitacao)
             db.session.commit()
             
-            # --- NOTIFICAÇÃO DE NOVO PEDIDO (Apenas Admins/Gestores) ---
+            # --- NOTIFICAÇÃO DE NOVO PEDIDO ---
             try:
                 agri_obj = Agricultor.query.get(data['agricultor_id'])
                 serv_obj = Servico.query.get(data['servico_id'])
@@ -84,7 +83,6 @@ class SolicitacaoListResource(Resource):
                 print(f"Erro Notificação Post: {e}")
 
             try:
-                # Associamos ao usuário do agricultor se possível, senão vai vazio
                 user_id = agri_obj.usuario_id if agri_obj else None 
                 registrar_log(
                     acao="CRIAR",
@@ -95,8 +93,6 @@ class SolicitacaoListResource(Resource):
                 )
             except Exception as e:
                 print(f"Erro ao registrar auditoria (CRIAR): {e}")
-
-            
 
             return solicitacao_schema_detalhado.dump(nova_solicitacao), 201
 
@@ -117,15 +113,16 @@ class SolicitacaoResource(Resource):
         operador_anterior = solicitacao.operador_id
         
         try:
+            # Carrega dados validados
             data = solicitacao_schema_carga.load(json_data, partial=True)
             
-            # Bloqueia alteração de dados base após o início do processo
+            # Bloqueia alteração de dados base se já processado
             if solicitacao.status.lower() != 'pendente':
                 for campo in ['agricultor_id', 'propriedade_id', 'servico_id']:
                     if campo in data and str(data[campo]) != str(getattr(solicitacao, campo)):
                         return {"message": "Não é permitido alterar dados base de pedidos processados."}, 400
 
-            # Atualização dos campos
+            # Atualização de IDs
             if 'operador_id' in json_data:
                 val = json_data.get('operador_id')
                 solicitacao.operador_id = int(val) if val and str(val).strip() != "" else None
@@ -134,25 +131,42 @@ class SolicitacaoResource(Resource):
                 val = json_data.get('veiculo_id')
                 solicitacao.veiculo_id = int(val) if val and str(val).strip() != "" else None
 
-            for key in ['status', 'data_execucao', 'observacao', 'observacao_funcionario', 'observacoes']:
+            # Atualiza campos texto/status
+            for key in ['status', 'observacao', 'observacao_funcionario', 'observacoes']:
                 if key in data: setattr(solicitacao, key, data[key])
 
-            # --- LÓGICA DE NOTIFICAÇÕES PERSONALIZADAS ---
+            # --- TRATAMENTO SEGURO DA DATA DE EXECUÇÃO ---
+            if 'data_execucao' in json_data:
+                raw_date = json_data['data_execucao']
+                if raw_date:
+                    try:
+                        # Tenta converter YYYY-MM-DD para objeto Date do Python
+                        # Pega apenas os 10 primeiros caracteres (2026-01-01) para ignorar horas se vierem
+                        data_obj = datetime.strptime(str(raw_date)[:10], '%Y-%m-%d')
+                        solicitacao.data_execucao = data_obj
+                    except ValueError:
+                        # Se falhar a conversão, não salva data errada
+                        pass
+                else:
+                    solicitacao.data_execucao = None
+            # ---------------------------------------------
+
+            # --- NOTIFICAÇÕES ---
             try:
                 serv_obj = Servico.query.get(solicitacao.servico_id)
                 nome_servico = (serv_obj.nome_servico if serv_obj else "serviço").lower()
                 local = solicitacao.propriedade.terreno if solicitacao.propriedade else "propriedade"
 
-                # 1. ATRIBUÍDO A UM FUNCIONÁRIO (Informa o local)
+                # 1. Atribuição
                 if solicitacao.operador_id and solicitacao.operador_id != operador_anterior:
                     msg_func = f"Você foi escalado para o serviço de {nome_servico} na propriedade {local}."
                     db.session.add(Notificacao(usuario_id=solicitacao.operador_id, mensagem=msg_func))
 
-                # 2. MUDANÇA DE STATUS (Filtra por papel)
+                # 2. Mudança de Status
                 if solicitacao.status != status_anterior:
                     status_limpo = solicitacao.status.strip().upper()
                     
-                    # PARA O AGRICULTOR (Usa usuario_id do modelo)
+                    # Para Agricultor
                     if solicitacao.agricultor and solicitacao.agricultor.usuario_id:
                         if status_limpo in ['CONCLUÍDA', 'CONCLUIDA']:
                             msg_produtor = f"O serviço de {nome_servico} foi concluído com sucesso!"
@@ -160,7 +174,7 @@ class SolicitacaoResource(Resource):
                             msg_produtor = f"A sua solicitação de {nome_servico} foi {solicitacao.status.lower()}."
                         db.session.add(Notificacao(usuario_id=solicitacao.agricultor.usuario_id, mensagem=msg_produtor))
 
-                    # PARA O ADMIN/GESTOR (Informa QUEM concluiu)
+                    # Para Gestão (apenas na conclusão)
                     if status_limpo in ['CONCLUÍDA', 'CONCLUIDA']:
                         nome_func = solicitacao.operador.nome if solicitacao.operador else "Um técnico"
                         nome_agri = solicitacao.agricultor.nome if solicitacao.agricultor else "um agricultor"
@@ -175,14 +189,13 @@ class SolicitacaoResource(Resource):
 
             db.session.commit()
 
+            # --- AUDITORIA ---
             try:
-                # Determina o texto dos detalhes baseado na alteração
                 detalhes_audit = "Solicitação atualizada."
                 if solicitacao.status != status_anterior:
                     detalhes_audit = f"Status alterado de '{status_anterior}' para '{solicitacao.status}'."
                 
-                # Tenta pegar quem alterou (geralmente passado como operador_id no JSON do front)
-                operador_q_alterou = json_data.get('operador_id')
+                operador_q_alterou = json_data.get('operador_id') # Quem disparou a ação (idealmente viria do token)
 
                 registrar_log(
                     acao="EDITAR",
@@ -251,6 +264,7 @@ class SolicitacaoResource(Resource):
                 acao="EXCLUIR",
                 tabela="Solicitacao",
                 registro_id=id_temp,
+                usuario_id=None, 
                 usuario_id=None, 
                 detalhes=f"Solicitação do agricultor ID {agri_temp} foi excluída permanentemente."
             )

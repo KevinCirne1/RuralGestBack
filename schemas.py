@@ -32,8 +32,9 @@ class ServicoSimplesSchema(ma.Schema):
 
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
-    data_solicitacao = fields.DateTime(format='%d/%m/%Y')
-    data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
+    # CORREÇÃO: Removemos a formatação para enviar ISO (Padrão Internacional)
+    data_solicitacao = fields.DateTime()
+    data_execucao = fields.DateTime(allow_none=True) 
     status = fields.Str()
 
 class VisitaTecnicaSimplesSchema(ma.Schema):
@@ -96,10 +97,10 @@ class ServicoListaSchema(ma.Schema):
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     
-    
-    data_solicitacao = fields.DateTime(format='%d/%m/%Y')
-    data_execucao = fields.DateTime(format='%d/%m/%Y', allow_none=True) 
-    # -------------------------------
+    # --- CORREÇÃO: Removemos a formatação para o Frontend conseguir ler ---
+    data_solicitacao = fields.DateTime()
+    data_execucao = fields.DateTime(allow_none=True) 
+    # ---------------------------------------------------------------------
 
     operador_id = fields.Int()
     veiculo_id = fields.Int()   
