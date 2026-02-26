@@ -1,8 +1,9 @@
 from datetime import datetime
 import pytz
+import os
 from flask import request
 from flask_restful import Resource
-from models import Solicitacao, Notificacao, Usuario, Propriedade, Agricultor, Servico
+from models import Solicitacao, Notificacao, Usuario, Propriedade, Agricultor, Servico, Documento
 from helpers.database import db
 from helpers.auditoria.auditoria import registrar_log
 from marshmallow import ValidationError
@@ -200,22 +201,48 @@ class SolicitacaoResource(Resource):
             return {"message": "Erro ao atualizar", "detalhe": str(e)}, 500
 
     def delete(self, solicitacao_id):
-        """Remove solicitações apenas se ainda estiverem pendentes"""
+        """Remove solicitações e apaga os PDFs físicos do servidor"""
         solicitacao = Solicitacao.query.get_or_404(solicitacao_id)
         
+        # Só permite excluir se for PENDENTE
         if solicitacao.status.lower() != 'pendente':
             return {"message": "Ação Proibida: Pedido já processado."}, 400
 
         id_temp = solicitacao.id
         agri_temp = solicitacao.agricultor_id
 
+        # 1. Pegamos os documentos para apagar os PDFs físicos do HD
+        documentos = Documento.query.filter_by(solicitacao_id=id_temp).all()
+        pasta_pdfs = os.path.abspath("documentos_gerados")
+        
+        for doc in documentos:
+            if doc.arquivo_pdf:
+                caminho_arquivo = os.path.join(pasta_pdfs, doc.arquivo_pdf)
+                if os.path.exists(caminho_arquivo):
+                    try:
+                        os.remove(caminho_arquivo) # Destrói o PDF do HD!
+                    except Exception as e:
+                        print(f"Aviso: Não apagou o arquivo físico: {e}")
+
+        # --- A JOGADA DE MESTRE ---
+        # Limpamos a solicitação e os documentos da memória do SQLAlchemy.
+        db.session.expunge_all()
+
         try:
+            # Apagamos primeiro os "filhos" usando força bruta no banco de dados
+            db.session.execute(text("DELETE FROM documento WHERE solicitacao_id = :id"), {"id": id_temp})
+            db.session.execute(text("DELETE FROM visita_tecnica WHERE solicitacao_id = :id"), {"id": id_temp})
             
-            db.session.delete(solicitacao)
+            # E finalmente apagamos a solicitação (o pai)
+            db.session.execute(text("DELETE FROM solicitacao WHERE id = :id"), {"id": id_temp})
+            
             db.session.commit()
+            
         except Exception as e:
             db.session.rollback()
-            return {"message": f"Erro interno: {e}"}, 500
+            return {"message": f"Erro interno ao deletar no banco: {str(e)}"}, 500
+
+
             
         
 

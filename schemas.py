@@ -1,5 +1,6 @@
 from helpers.database import ma
 from marshmallow import fields, EXCLUDE, validate, validates, ValidationError, pre_load
+from helpers.validacoes.validacoes import validar_cpf
 import re
 
 # --- Schemas de Visualização (Dumps) ---
@@ -173,9 +174,10 @@ class AgricultorLoadSchema(BaseLoadSchema):
     
     @validates('cpf')
     def validate_cpf(self, value, **kwargs):
-        cpf_limpo = re.sub(r'[^0-9]', '', value)
-        if len(cpf_limpo) != 11:
-            raise ValidationError('O CPF deve conter 11 dígitos.')
+        # Chamando o nosso componente centralizado!
+        valido, resultado = validar_cpf(value)
+        if not valido:
+            raise ValidationError(resultado) 
 
 class PropriedadeLoadSchema(BaseLoadSchema):
     terreno = fields.Str(required=True)

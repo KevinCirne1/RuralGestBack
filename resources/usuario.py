@@ -1,6 +1,6 @@
 from flask import request
 from flask_restful import Resource
-from models import Usuario, Agricultor # <--- ADICIONADO: Agricultor
+from models import Usuario, Agricultor 
 from helpers.database import db
 from marshmallow import ValidationError
 from schemas import (
