@@ -47,7 +47,7 @@ class UsuarioResource(Resource):
         json_data = request.get_json()
         
         try:
-            # partial=True permite enviar apenas alguns campos para atualizar
+            
             dados = usuario_schema_carga.load(json_data, partial=True)
         except ValidationError as err:
             return {"messages": err.messages}, 400

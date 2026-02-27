@@ -26,7 +26,7 @@ COPY . .
 # 7. Expõe a porta 5000
 EXPOSE 5000
 
-# CORREÇÃO CRÍTICA: Converte o arquivo de Windows (CRLF) para Linux (LF) e dá permissão
+
 RUN dos2unix ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 # Definir o script como o ponto de entrada

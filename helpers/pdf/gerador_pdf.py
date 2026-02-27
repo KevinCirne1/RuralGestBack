@@ -1,7 +1,7 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
-from reportlab.lib import colors  # Importando cores oficiais
+from reportlab.lib import colors  
 from datetime import datetime
 import os
 
@@ -18,7 +18,7 @@ def gerar_pdf_solicitacao(solicitacao, tipo_doc, nome_arquivo):
     c = canvas.Canvas(caminho_completo, pagesize=A4)
     width, height = A4
     
-    # GARANTIA TOTAL: Forçar a cor PRETA logo no início
+   
     c.setFillColor(colors.black)
     c.setStrokeColor(colors.black)
     

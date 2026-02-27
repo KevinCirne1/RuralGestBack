@@ -13,7 +13,7 @@ visitas_schema_lista = VisitaTecnicaListaSchema(many=True)
 
 class VisitaListResource(Resource):
     def get(self):
-        # Lista todas as visitas 
+        
         solicitacao_id = request.args.get('solicitacao_id')
         if solicitacao_id:
             visitas = VisitaTecnica.query.filter_by(solicitacao_id=solicitacao_id).all()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List
-from sqlalchemy import String, Float, Boolean # <--- ADICIONEI Boolean AQUI
+from sqlalchemy import String, Float, Boolean 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from helpers.database import db
 

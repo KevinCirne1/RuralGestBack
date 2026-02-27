@@ -51,13 +51,13 @@ class RegistroAgricultorResource(Resource):
             cpf_str = str(json_data.get('cpf')).strip()
             senha_str = str(json_data.get('senha')).strip()
 
-            # =========================================================
+            
             # COMPONENTE DE VALIDAÇÃO DE CPF 
             
             cpf_valido, mensagem_ou_cpf_limpo = validar_cpf(cpf_str)
             if not cpf_valido:
                 return {"message": mensagem_ou_cpf_limpo}, 400
-            # =========================================================
+            
 
             # Verificação de duplicidade na Base de Dados
             if Usuario.query.filter_by(login=login_str).first():

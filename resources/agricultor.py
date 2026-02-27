@@ -52,11 +52,11 @@ class AgricultorListResource(Resource):
                 login=login_usuario,
                 senha=senha_digitada, 
                 perfil="produtor",
-                contato=dados_validados.get('contato') # Já sincroniza o contato na criação
+                contato=dados_validados.get('contato') 
             )
 
             db.session.add(novo_usuario)
-            db.session.flush() # Gera o ID do usuário sem commitar ainda
+            db.session.flush() 
 
             # 4. Cria o Agricultor vinculado
             if hasattr(Agricultor, 'usuario_id'):

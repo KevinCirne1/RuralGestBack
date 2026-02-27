@@ -32,7 +32,6 @@ class ServicoSimplesSchema(ma.Schema):
 
 class SolicitacaoSimplesSchema(ma.Schema):
     id = fields.Int(dump_only=True)
-    # CORREÇÃO: Removemos a formatação para enviar ISO (Padrão Internacional)
     data_solicitacao = fields.DateTime()
     data_execucao = fields.DateTime(allow_none=True) 
     status = fields.Str()
@@ -97,10 +96,10 @@ class ServicoListaSchema(ma.Schema):
 class SolicitacaoListaSchema(ma.Schema):
     id = fields.Int(dump_only=True)
     
-    # --- CORREÇÃO: Removemos a formatação para o Frontend conseguir ler ---
+    
     data_solicitacao = fields.DateTime()
     data_execucao = fields.DateTime(allow_none=True) 
-    # ---------------------------------------------------------------------
+    
 
     operador_id = fields.Int()
     veiculo_id = fields.Int()   
@@ -175,7 +174,7 @@ class AgricultorLoadSchema(BaseLoadSchema):
     
     @validates('cpf')
     def validate_cpf(self, value, **kwargs):
-        # Chamando o nosso componente centralizado!
+        
         valido, resultado = validar_cpf(value)
         if not valido:
             raise ValidationError(resultado) 

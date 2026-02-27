@@ -21,7 +21,7 @@ class DashboardResumoResource(Resource):
         # Agrupa nas 3 categorias do gráfico
         pendentes = status_list.count('PENDENTE')
         
-        # "Em Andamento" agora inclui APROVADA e EM_USO
+        
         em_andamento = (status_list.count('EM ANDAMENTO') + 
                         status_list.count('APROVADA') + 
                         status_list.count('EM_USO'))

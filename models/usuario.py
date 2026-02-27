@@ -22,7 +22,7 @@ class Usuario(db.Model):
         self.login = login
         self.senha = bcrypt.generate_password_hash(senha).decode('utf-8')
         self.perfil = perfil
-        self.contato = contato  # <--- Adicionado aqui
+        self.contato = contato  
 
     def verificar_senha(self, senha_texto_plano):
         """
