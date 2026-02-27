@@ -1,56 +1,49 @@
-# ==============================================================================
-# 
-#
-
-# ==============================================================================
-
-# Arquivos de Ambiente Virtual
-# Impede o envio de todas as bibliotecas instaladas, que podem ocupar muito espaço.
-# Outros desenvolvedores devem instalar as dependências usando o requirements.txt.
+# Ambiente virtual
 venv/
 env/
 .venv/
-.env/
 
-# Arquivos de Cache e Bytecode do Python
-# Gerados automaticamente pelo Python, não precisam ser versionados.
+# Arquivos de ambiente (segredos)
+.env
+*.env
+Postgres.env
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 
-# Arquivo de Variáveis de Ambiente
-# CRÍTICO PARA SEGURANÇA! Contém senhas e chaves secretas. NUNCA envie este arquivo.
-.env
-
-# Arquivos de Banco de Dados local (se usar SQLite para testes)
+# Banco local
 *.sqlite3
 *.db
 
-# Pastas de configuração de IDEs (Editor de Código)
-# Evita conflitos de configuração pessoal entre desenvolvedores.
+# IDEs
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
 
-# Arquivos de Sistema Operacional
-# Arquivos gerados por macOS, Windows e Linux que não são parte do projeto.
-.DS_Store
-Thumbs.db
-
-# Arquivos de logs
-# Logs são específicos do ambiente de execução e não devem ser versionados.
+# Logs / cobertura / build
 *.log
 logs/
-
-# Arquivos de cobertura de testes
-# Gerados ao rodar testes para medir a cobertura de código.
 .coverage
-.coverage.*
 htmlcov/
-
-# Arquivos de build e distribuição do Python
 build/
 dist/
 *.egg-info/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Migrations e caches de teste
+migrations/
+.pytest_cache/
+
+# Arquivos gerados pelo script de dump
+project_dump_filtered.txt
+codigo_completo.txt
+dump_filtered.py
+
+# Outros
+documentos_gerados/
+*.pdf

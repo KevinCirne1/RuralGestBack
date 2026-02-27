@@ -1,0 +1,27 @@
+Ignorar arquivos do Git
+
+.git
+.gitignore
+
+Ignorar Ambientes Virtuais (CRÍTICO)
+
+venv/
+.venv/
+env/
+
+Ignorar Cache do Python (Deixa a imagem menor)
+
+pycache/
+*.pyc
+*.pyo
+*.pyd
+
+Ignorar Arquivos de Ambiente Local (Segurança)
+
+.env
+
+Ignorar Banco de dados local (Se tiver)
+
+*.sqlite3
+*.db
+

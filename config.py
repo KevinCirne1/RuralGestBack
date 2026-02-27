@@ -1,5 +1,5 @@
 import os
-#rom datetime import timedelta # Importamos o timedelta para definir o tempo
+#rom datetime import timedelta # 
 from dotenv import load_dotenv
 
 load_dotenv() 
